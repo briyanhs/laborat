@@ -26,8 +26,8 @@ if($cek > 0){
         $_SESSION['status'] = "login";
 		// alihkan ke halaman dashboard admin
 		echo '<div class="alert alert-success text-center" role="alert">Berhasil Log In</div>';
-        header("refresh: 3; url=admin/dashboard_admin.php");
-		//header("location:admin/dashboard_admin.php");
+        header("refresh: 3; url=admin/dashboard_lab.php");
+		//header("location:admin/dashboard_lab.php");
  
 	// cek jika user login sebagai user
 	}else if($data['level']=="User"){
@@ -40,24 +40,6 @@ if($cek > 0){
         header("refresh: 3; url=user/halaman_user.php");
 		//header("location:user/halaman_user.php");
  
-	}else if($data['level']=="CS"){
-		// buat session login dan username
-		$_SESSION['username'] = $username;
-		$_SESSION['level'] = "CS";
-        $_SESSION['status'] = "login";
-		// alihkan ke halaman dashboard CS
-		echo '<div class="alert alert-success text-center" role="alert">Berhasil Log In</div>';
-        header("refresh: 3; url=report_ekspedisi/spk.php");
-		//header("location:report_ekspedisi/spk.php");
-	}else if($data['level']=="Lab"){
-		// buat session login dan username
-		$_SESSION['username'] = $username;
-		$_SESSION['level'] = "Lab";
-        $_SESSION['status'] = "login";
-		// alihkan ke halaman dashboard Lab
-		echo '<div class="alert alert-success text-center" role="alert">Berhasil Log In</div>';
-        header("refresh: 3; url=lab/dashboard_lab.php");
-		//header("location:report_ekspedisi/spk.php");
 	}else{
 		// alihkan ke halaman login kembali
 		header("location:index.php?pesan=gagal");

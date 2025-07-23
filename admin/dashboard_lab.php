@@ -32,7 +32,7 @@ if (isset($_GET['pesan'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lab Dashboard</title>
     <link href="<?= BASE_URL ?>bootstrap/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="<?= BASE_URL ?>lab/style.css">
+    <link rel="stylesheet" href="<?= BASE_URL ?>admin/style.css">
     <link rel="stylesheet" href="<?= BASE_URL ?>fontawesome/css/font-awesome.min.css">
     <!--datatables-->
     <link rel="stylesheet" type="text/css" href="<?= BASE_URL ?>datatables/datatables.css" />

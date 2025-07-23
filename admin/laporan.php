@@ -45,7 +45,7 @@ if (isset($_GET['pesan'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lab Dashboard</title>
     <link href="<?= BASE_URL ?>bootstrap/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="<?= BASE_URL ?>lab/style.css">
+    <link rel="stylesheet" href="<?= BASE_URL ?>admin/style.css">
     <link rel="stylesheet" href="<?= BASE_URL ?>fontawesome/css/font-awesome.min.css">
     <link rel="stylesheet" type="text/css" href="<?= BASE_URL ?>datatables/datatables.css" />
 
@@ -168,7 +168,7 @@ if (isset($_GET['pesan'])) {
                                         data-no_lab="<?= htmlspecialchars($result_master['no_lab']); ?>">
                                         <i class="fa fa-trash"></i>
                                     </button>
-                                    <a href="<?= BASE_URL ?>lab/generate_pdf.php?id_m_hasil_uji=<?= htmlspecialchars($result_master['id_m_hasil_uji']); ?>" target="_blank" class="btn btn-primary btn-sm">
+                                    <a href="<?= BASE_URL ?>admin/generate_pdf.php?id_m_hasil_uji=<?= htmlspecialchars($result_master['id_m_hasil_uji']); ?>" target="_blank" class="btn btn-primary btn-sm">
                                         <i class="fa fa-file-pdf-o"></i>
                                     </a>
                                 </td>
@@ -185,7 +185,7 @@ if (isset($_GET['pesan'])) {
 
     <div class="modal fade" id="modalTambah" tabindex="-1" aria-labelledby="modalTambahLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
-            <form action="<?= BASE_URL ?>lab/proses_tambah.php" method="POST" id="formTambah">
+            <form action="<?= BASE_URL ?>admin/proses_tambah.php" method="POST" id="formTambah">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="modalTambahLabel">Tambah Data Hasil Uji</h5>
@@ -278,7 +278,7 @@ if (isset($_GET['pesan'])) {
 
     <div class="modal fade" id="modalEdit" tabindex="-1" aria-labelledby="modalEditLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
-            <form action="<?= BASE_URL ?>lab/proses_edit_all.php" method="POST" id="formEditAll">
+            <form action="<?= BASE_URL ?>admin/proses_edit_all.php" method="POST" id="formEditAll">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="modalEditLabel">Edit Data Hasil Uji Lengkap (<span id="editModalNoLabTitle"></span>)</h5>
@@ -335,7 +335,7 @@ if (isset($_GET['pesan'])) {
 
     <div class="modal fade" id="modalHapus" tabindex="-1" aria-labelledby="modalHapusLabel" aria-hidden="true">
         <div class="modal-dialog">
-            <form action="<?= BASE_URL ?>lab/proses_hapus_master.php" method="POST">
+            <form action="<?= BASE_URL ?>admin/proses_hapus_master.php" method="POST">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="modalHapusLabel">Konfirmasi Hapus Data</h5>
@@ -521,7 +521,7 @@ if (isset($_GET['pesan'])) {
 
                 if (id_paket) {
                     $.ajax({
-                        url: '<?= BASE_URL ?>lab/get_parameters.php', // Endpoint untuk ambil parameter paket
+                        url: '<?= BASE_URL ?>admin/get_parameters.php', // Endpoint untuk ambil parameter paket
                         type: 'POST',
                         dataType: 'json',
                         data: {
@@ -560,7 +560,7 @@ if (isset($_GET['pesan'])) {
                         placeholder: 'Cari parameter...',
                         allowClear: true,
                         ajax: {
-                            url: '<?= BASE_URL ?>lab/get_all_parameters.php',
+                            url: '<?= BASE_URL ?>admin/get_all_parameters.php',
                             dataType: 'json',
                             delay: 250,
                             data: function(params) {
@@ -667,7 +667,7 @@ if (isset($_GET['pesan'])) {
                 $('#detailNoLab').text(no_lab);
 
                 $.ajax({
-                    url: '<?= BASE_URL ?>lab/get_detail_hasil.php',
+                    url: '<?= BASE_URL ?>admin/get_detail_hasil.php',
                     type: 'POST',
                     data: {
                         id_m_hasil_uji: id_m_hasil_uji
@@ -692,7 +692,7 @@ if (isset($_GET['pesan'])) {
                 $('#edit_id_m_hasil_uji_all').val(id_m_hasil_uji);
 
                 $.ajax({
-                    url: '<?= BASE_URL ?>lab/get_data_for_edit.php',
+                    url: '<?= BASE_URL ?>admin/get_data_for_edit.php',
                     type: 'POST',
                     dataType: 'json',
                     data: {

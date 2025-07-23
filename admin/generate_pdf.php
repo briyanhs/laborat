@@ -66,8 +66,6 @@ $options->set('isRemoteEnabled', true); // Penting jika ada gambar atau CSS ekst
 $dompdf = new Dompdf($options);
 
 // --- Buat Konten HTML untuk PDF ---
-// Struktur HTML ini harus meniru desain dari gambar x.jpg
-// Sesuaikan styling, tabel, dan penempatan data
 $html = '
 <!DOCTYPE html>
 <html lang="en">
@@ -207,7 +205,7 @@ $html = '
             <td class="label">2. Berasal dari</td>
             <td>: ' . htmlspecialchars($master_data['lokasi_uji']) . '</td>
             <td class="label right-align">Diterima</td>
-            <td class="value">: ' . date('d F Y', strtotime($master_data['tanggal_uji'])) . '</td>
+            <td>: ' . htmlspecialchars($master_data['penguji']) . '</td>
         </tr>
         <tr>
             <td class="label">3. No. Lab.</td>
@@ -282,19 +280,19 @@ $html .= '
         <p class="date-place">Surakarta, ' . date('d F Y', strtotime($master_data['tanggal_uji'])) . '</p>
         <table style="width:100%;">
             <tr>
-                <td style="width:33%; text-align: left;">Diteliti<br>Manajer Perencanaan dan Pengembangan</td>
+                <td style="width:33%; text-align: center;">Diteliti<br>Manajer Perencanaan dan Pengembangan</td>
                 <td style="width:33%;"></td>
-                <td style="width:33%; text-align: right;">Diperiksa<br>Asisten Manajer Laboratorium</td>
+                <td style="width:33%; text-align: center;">Diperiksa<br>Asisten Manajer Laboratorium</td>
             </tr>
             <tr>
-                <td style="width:33%; text-align: left;"><div class="name">R. Agus Rendy, ST</div><div class="npp">NPP. 483 300 872</div></td>
+                <td style="width:33%; text-align: center;"><div class="name">Harry Arifian Muam, A.Md</div><div class="npp">NPP. 577 120 384</div></td>
                 <td style="33%;"></td>
-                <td style="33%; text-align: right;"><div class="name">Srl Moro, Am.D</div><div class="npp">NPP. 502 160 174</div></td>
+                <td style="33%; text-align: center;"><div class="name">Sri Moro, A.Md</div><div class="npp">NPP. 502 160 174</div></td>
             </tr>
         </table>
         <div style="text-align: center; margin-top: 20px;">
-            <p>Mengetahui:<br>Direktur Teknik<br>PERUMDA AIR MINUM KOTA SURAKARTA</p>
-            <div class="name">Toya Sarwoko Priyo Saptono, SH</div>
+            <p>Mengetahui:<br>Direksi PERUMDA Air Minum Kota Surakarta<br>Direktur Teknik<br><br></p>
+            <div class="name">Sarwoko Priyo Saptono, SH</div>
             <div class="npp">NPP. 450 190 269</div>
         </div>
     </div>
