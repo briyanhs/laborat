@@ -7,7 +7,7 @@ $host = $_SERVER['HTTP_HOST'];
 
 // Ambil path dari script, lalu hapus nama file (index.php) dan subfolder (admin, lab, dll)
 $script_path = dirname($_SERVER['SCRIPT_NAME']);
-$root_path = preg_replace('#/(admin|lab)$#', '', $script_path);
+$root_path = preg_replace('#/(admin)$#', '', $script_path);
 
 // Gabungkan semuanya
 $base_url = $protocol . $host . $root_path . '/';
