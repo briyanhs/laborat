@@ -4,7 +4,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Renbang Recap</title>
+    <title>Laboratory</title>
     <link rel="stylesheet" href="style.css">
     <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet">
   </head>
@@ -34,8 +34,8 @@
         ?>
 
     <!------------ left box ----------->
-      <div class="col-md-6 rounded-4 d-flex justify-content-center align-items-center flex-column left-box" style="background: #103cb3;">
-        <div class="featured-image mb-3">
+      <div class="col-md-6 rounded-4 d-flex justify-content-center align-items-center flex-column left-box" style="background: #0044ffff;">
+        <div class="featured-image">
           <img src="image/logo.png" class="img-fluid" style="width: 250px;">
         </div>
         <p class="text-white fs-2" style="font-family: 'Courier New', Courier, monospace; font-weight: 600;">Be Verified</p>

@@ -3,7 +3,7 @@
 
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Laporan Hasil Uji</title>
+    <title>Laporan Hasil Uji Bakteriologi</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -134,7 +134,7 @@
         }
 
         .signature-section {
-            margin-top: 1px;
+            margin-top: 60px;
             font-size: 8pt;
             text-align: center;
         }
@@ -172,7 +172,7 @@
 
     <div class="title-container">
         <h3>LAPORAN HASIL UJI</h3>
-        <h4>Pengujian Laboratorium Fisika dan Kimia Air</h4>
+        <h4>Pengujian Laboratorium Mikrobiologi</h4>
     </div>
 
     <table class="info-container-table">
@@ -190,7 +190,7 @@
                         <td><?= htmlspecialchars($master_data['alamat']) ?></td>
                     </tr>
                     <tr>
-                        <td class="label">Jenis Air</td>
+                        <td class="label">Jenis Sampel</td>
                         <td class="separator">:</td>
                         <td><?= htmlspecialchars($master_data['jenis_sampel']) ?></td>
                     </tr>
@@ -208,6 +208,11 @@
                         <td class="label">Nomer Analisa</td>
                         <td class="separator">:</td>
                         <td><?= htmlspecialchars($master_data['no_analisa']) ?></td>
+                    </tr>
+                    <tr>
+                        <td class="label">Jenis Pengujian</td>
+                        <td class="separator">:</td>
+                        <td><?= htmlspecialchars($master_data['jenis_pengujian']) ?></td>
                     </tr>
                 </table>
             </td>
@@ -233,71 +238,60 @@
                         <td class="separator">:</td>
                         <td><?= !empty($master_data['tanggal_pengujian']) ? date('d-m-Y', strtotime($master_data['tanggal_pengujian'])) : '-' ?></td>
                     </tr>
-                </table>
+                </table>   
             </td>
         </tr>
     </table>
 
-
     <table class="parameter-table">
         <thead>
             <tr>
-                <th style="width: 5%;">No.</th>
-                <th>Parameter</th>
-                <th style="width: 5%;">Satuan</th>
-                <th style="width: 15%;">Kadar Maksimum</th>
-                <th style="width: 10%;">Hasil Uji</th>
-
-                <th style="width: 20%;">Keterangan</th>
-                <th style="width: 20%;">Metode Uji</th>
+                <th rowspan="2" style="width: 5%;">No</th>
+                <th rowspan="2" style="width: 20%;">Hasil Uji</th>
+                <th rowspan="2" style="width: 10%;">Satuan</th>
+                <th rowspan="2" style="width: 10%;">Nilai Baku Mutu</th>
+                <th colspan="2" style="width: 20%;">Hasil Pengujian</th>
+                <th rowspan="2" style="width: 15%;">Ket.</th>
+                <th rowspan="2" style="width: 20%;">Metode Uji</th>
+            </tr>
+            <tr>
+                <th>Hasil Analisa</th>
+                <th>Penegasan</th>
             </tr>
         </thead>
         <tbody>
-            <?php
-            $no_global = 1;
-            $kategori_sebelumnya = null;
-
-            foreach ($detail_data as $param) {
-                if ($param['kategori'] !== $kategori_sebelumnya) {
-                    // **PERBAIKAN COLSPAN**
-                    echo '<tr>
-                        <td class="text-left" colspan="7"><b>' . htmlspecialchars(strtoupper($param['kategori'])) . '</b></td>
-                    </tr>';
-                    $kategori_sebelumnya = $param['kategori'];
-                }
-
-                $nama_param_formatted = htmlspecialchars($param['nama_parameter']);
-                $nama_param_formatted = str_replace('Cr⁶⁺', 'Cr<sup>6+</sup>', $nama_param_formatted);
-                $nama_param_formatted = str_replace('NO₂⁻', 'NO<sub>2</sub><sup>-</sup>', $nama_param_formatted);
-                $nama_param_formatted = str_replace('NO₃⁻', 'NO<sub>3</sub><sup>-</sup>', $nama_param_formatted);
-
-                echo '
+            <?php if (!empty($detail_data)) : ?>
+                <?php foreach ($detail_data as $index => $detail) : ?>
+                    <tr>
+                        <td><?= $index + 1 ?></td>
+                        <td class="text-left"><?= htmlspecialchars($detail['nama_parameter']) ?></td>
+                        <td><?= htmlspecialchars($detail['satuan']) ?></td>
+                        <td><?= htmlspecialchars($detail['nilai_baku_mutu']) ?></td>
+                        <td><?= htmlspecialchars($detail['hasil']) ?></td>
+                        <td><?= htmlspecialchars($detail['penegasan']) ?></td>
+                        <td><?= htmlspecialchars($detail['keterangan'] ?? '') // Tampilkan string kosong jika null 
+                            ?></td>
+                        <td class="text-left"><?= htmlspecialchars($detail['metode_uji']) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php else : ?>
                 <tr>
-                    <td>' . $no_global++ . '</td>
-                    <td class="text-left">' . $nama_param_formatted . '</td>
-                    <td>' . htmlspecialchars($param['satuan']) . '</td>
-                    <td>' . htmlspecialchars($param['kadar_maksimum']) . '</td>
-                    <td>' . htmlspecialchars($param['hasil']) . '</td>
-                    
-                    <td>' . htmlspecialchars($param['keterangan']) . '</td>
-                    <td>' . htmlspecialchars($param['metode_uji']) . '</td>
-                </tr>';
-            }
-            ?>
+                    <td colspan="8" style="text-align: center; padding: 10px;">Data hasil uji tidak ditemukan.</td>
+                </tr>
+            <?php endif; ?>
         </tbody>
     </table>
 
     <div class="notes">
-        <p>Persyaratan Kualitas Air Minum menurut Per.Men.Kes RI No. 2 Tahun 2023 <br>
-            Catatan:</p>
+        <p>Persyaratan Kualitas Air Untuk Keperluan Higiene Sanitasi Per. Men. Kes. RI. No. 2 Tahun 2023 <br>
+            Catatan: </p>
         <ol>
-            <li>Hasil Uji ini hanya berlaku untuk contoh yang diuji.</li>
+            <li>Hasil uji ini hanya berlaku untuk contoh yang diuji.</li>
             <li>Laporan Hasil Uji ini tidak boleh digandakan tanpa izin Laboratorium PERUMDA Air Minum Kota Surakarta, kecuali secara lengkap.</li>
         </ol>
     </div>
 
     <div class="signature-section mt-2">
-
         <?php
         // Variabel $verifiers dan $qrCodeBase64 dikirim dari generate_pdf.php
         // Kita cek apakah QR Code sudah dibuat (artinya min 1 verifikasi)

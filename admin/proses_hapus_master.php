@@ -18,7 +18,7 @@ if ($_SESSION['status'] != "login") {
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Pastikan koneksi database tersedia
     if (!isset($con) || !$con) {
-        header("Location: laporan.php?pesan=gagal&error=db_connect_failed");
+        header("Location: fisika_kimia.php?pesan=gagal&error=db_connect_failed");
         exit();
     }
 
@@ -27,7 +27,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // Basic validation
     if (empty($id_m_hasil_uji)) {
-        header("Location: laporan.php?pesan=gagal&error=id_not_provided");
+        header("Location: fisika_kimia.php?pesan=gagal&error=id_not_provided");
         exit();
     }
 
@@ -49,19 +49,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         // Commit transaksi jika kedua query berhasil
         mysqli_commit($con);
-        header("Location: laporan.php?pesan=sukses_hapus");
+        header("Location: fisika_kimia.php?pesan=sukses_hapus");
         exit();
 
     } catch (Exception $e) {
         // Rollback transaksi jika ada error
         mysqli_rollback($con);
         error_log("Proses hapus master data gagal: " . $e->getMessage());
-        header("Location: laporan.php?pesan=gagal&error_msg=" . urlencode($e->getMessage()));
+        header("Location: fisika_kimia.php?pesan=gagal&error_msg=" . urlencode($e->getMessage()));
         exit();
     }
 } else {
     // Jika bukan metode POST, redirect kembali
-    header("Location: laporan.php?pesan=gagal&error=invalid_request_method");
+    header("Location: fisika_kimia.php?pesan=gagal&error=invalid_request_method");
     exit();
 }
 ?>

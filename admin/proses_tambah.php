@@ -1,144 +1,175 @@
 <?php
-// lab/proses_tambah.php
-
-// error_reporting(E_ALL); // Aktifkan ini untuk debugging
-// ini_set('display_errors', 1);
-// ini_set('log_errors', 1);
-// ini_set('error_log', __DIR__ . '/tambah_error.log');
+// admin/proses_tambah.php
 
 include '../database/database.php';
 include '../config.php';
 session_start();
 
-if ($_SESSION['status'] != "login") {
+// ====================================================================
+// FUNGSI CEK KEPATUHAN (VERSI PALING ROBUST/TANGGUH)
+// ====================================================================
+function cekKepatuhan($hasil, $standar)
+{
+    if ($hasil === null || $standar === null || trim((string)$hasil) === '' || trim((string)$standar) === '') {
+        return '';
+    }
+
+    $standarStr = trim((string)$standar);
+    $hasilStr = trim((string)$hasil);
+
+    if (str_contains(strtolower($standarStr), 'suhu udara')) {
+        return '';
+    }
+
+    $standarStr = str_replace(',', '.', $standarStr);
+    $hasilStr = str_replace(',', '.', $hasilStr);
+
+    $hasilNum = is_numeric($hasilStr) ? (float)$hasilStr : null;
+
+    // --- LOGIKA RENTANG YANG DISempurnakan ---
+    // 1. Normalisasi semua jenis karakter strip menjadi strip biasa.
+    $standarNormalized = str_replace(['–', '—'], '-', $standarStr);
+
+    if (str_contains($standarNormalized, '-')) {
+        $parts = explode('-', $standarNormalized);
+        if (count($parts) === 2) {
+            // 2. Ekstrak hanya angka dari setiap bagian, abaikan teks lain.
+            preg_match('/-?\d+\.?\d*/', $parts[0], $minMatch);
+            preg_match('/-?\d+\.?\d*/', $parts[1], $maxMatch);
+
+            if (!empty($minMatch) && !empty($maxMatch) && $hasilNum !== null) {
+                $min = (float)$minMatch[0];
+                $max = (float)$maxMatch[0];
+                $epsilon = 0.000001;
+                $isMemenuhi = ($hasilNum > $min - $epsilon) && ($hasilNum < $max + $epsilon);
+                return $isMemenuhi ? 'Memenuhi' : 'Tidak Memenuhi';
+            }
+        }
+    }
+    // --- AKHIR LOGIKA RENTANG ---
+
+    if (str_starts_with($standarStr, '<')) {
+        $maxStr = trim(substr($standarStr, 1));
+        if (is_numeric($maxStr) && $hasilNum !== null) {
+            return $hasilNum < (float)$maxStr ? 'Memenuhi' : 'Tidak Memenuhi';
+        }
+    }
+
+    if (str_starts_with($standarStr, '>')) {
+        $minStr = trim(substr($standarStr, 1));
+        if (is_numeric($minStr) && $hasilNum !== null) {
+            return $hasilNum > (float)$minStr ? 'Memenuhi' : 'Tidak Memenuhi';
+        }
+    }
+
+    if ($hasilNum === null) {
+        return strtolower($hasilStr) === strtolower($standarStr) ? 'Memenuhi' : 'Tidak Memenuhi';
+    }
+
+    if (is_numeric($standarStr)) {
+        $standarNum = (float)$standarStr;
+        return $hasilNum <= $standarNum ? 'Memenuhi' : 'Tidak Memenuhi';
+    }
+
+    return '';
+}
+// ====================================================================
+
+
+if (!isset($_SESSION['status']) || $_SESSION['status'] != "login") {
     header("location:../index.php?pesan=belum_login");
     exit();
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (!isset($con) || !$con) {
-        header("Location: laporan.php?pesan=gagal&error=db_connect_failed");
+        header("Location: fisika_kimia.php?pesan=gagal&error=db_connect_failed");
         exit();
     }
 
-    // Ambil data master_hasil_uji
-    $id_paket    = isset($_POST['id_paket']) ? intval($_POST['id_paket']) : 0;
-    $lokasi_uji  = mysqli_real_escape_string($con, $_POST['lokasi_uji'] ?? '');
-    $penguji     = mysqli_real_escape_string($con, $_POST['penguji'] ?? '');
-    $pengirim    = mysqli_real_escape_string($con, $_POST['pengirim'] ?? '');
-    $jenis_air   = mysqli_real_escape_string($con, $_POST['jenis_air'] ?? '');
-    $no_lab      = mysqli_real_escape_string($con, $_POST['no_lab'] ?? '');
-    $tanggal_uji = mysqli_real_escape_string($con, $_POST['tanggal_uji'] ?? '');
-    $status      = mysqli_real_escape_string($con, $_POST['status'] ?? '');
+    $nama_pelanggan      = mysqli_real_escape_string($con, $_POST['nama_pelanggan'] ?? '');
+    $alamat              = mysqli_real_escape_string($con, $_POST['alamat'] ?? '');
+    $status_pelanggan    = mysqli_real_escape_string($con, $_POST['status_pelanggan'] ?? '');
+    $jenis_sampel        = mysqli_real_escape_string($con, $_POST['jenis_sampel'] ?? '');
+    $keterangan_sampel   = mysqli_real_escape_string($con, $_POST['keterangan_sampel'] ?? '');
+    $nama_pengirim       = mysqli_real_escape_string($con, $_POST['nama_pengirim'] ?? '');
+    $no_analisa          = mysqli_real_escape_string($con, $_POST['no_analisa'] ?? '');
+    $wilayah             = mysqli_real_escape_string($con, $_POST['wilayah'] ?? '');
+    $tanggal_pengambilan = mysqli_real_escape_string($con, $_POST['tanggal_pengambilan'] ?? '');
+    $tanggal_pengiriman  = mysqli_real_escape_string($con, $_POST['tanggal_pengiriman'] ?? '');
+    $tanggal_penerimaan  = mysqli_real_escape_string($con, $_POST['tanggal_penerimaan'] ?? '');
+    $tanggal_pengujian   = mysqli_real_escape_string($con, $_POST['tanggal_pengujian'] ?? '');
+    $status              = mysqli_real_escape_string($con, $_POST['status'] ?? '');
 
-    // Ambil data detail hasil_uji (array of hasil values)
-    $hasil_parameters = $_POST['hasil'] ?? []; // Ini akan menjadi array seperti [id_parameter => 'hasil_value']
+    $hasil_parameters = $_POST['hasil'] ?? [];
+    $param_details_from_form = $_POST['param_details'] ?? [];
 
-    // Validasi dasar master data
-    if (empty($id_paket) || empty($lokasi_uji) || empty($penguji) || empty($pengirim) || empty($jenis_air) || empty($no_lab) || empty($tanggal_uji) || empty($status)) {
-        header("Location: laporan.php?pesan=gagal&error=invalid_master_data_form");
+    if (empty($nama_pelanggan) || empty($no_analisa) || empty($hasil_parameters) || empty($param_details_from_form)) {
+        header("Location: fisika_kimia.php?pesan=gagal&error=incomplete_data");
         exit();
     }
 
-    // Memulai transaksi
     mysqli_begin_transaction($con);
 
     try {
-        // 1. Insert data ke master_hasil_uji
-        $query_insert_master = "INSERT INTO master_hasil_uji (no_lab, jenis_air, pengirim, penguji, lokasi_uji, tanggal_uji) VALUES (?, ?, ?, ?, ?, ?)";
+        $query_insert_master = "INSERT INTO master_hasil_uji (nama_pelanggan, alamat, status_pelanggan, jenis_sampel, keterangan_sampel, nama_pengirim, no_analisa, wilayah, tanggal_pengambilan, tanggal_pengiriman, tanggal_penerimaan, tanggal_pengujian) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt_master = mysqli_prepare($con, $query_insert_master);
-        if (!$stmt_master) {
-            throw new Exception("Prepare statement master failed: " . mysqli_error($con));
-        }
-        mysqli_stmt_bind_param($stmt_master, "ssssss", $no_lab, $jenis_air, $pengirim, $penguji, $lokasi_uji, $tanggal_uji);
+        mysqli_stmt_bind_param($stmt_master, "ssssssssssss", $nama_pelanggan, $alamat, $status_pelanggan, $jenis_sampel, $keterangan_sampel, $nama_pengirim, $no_analisa, $wilayah, $tanggal_pengambilan, $tanggal_pengiriman, $tanggal_penerimaan, $tanggal_pengujian);
+        mysqli_stmt_execute($stmt_master);
 
-        if (!mysqli_stmt_execute($stmt_master)) {
-            throw new Exception("Execute master query failed: " . mysqli_stmt_error($stmt_master));
-        }
-        $id_m_hasil_uji = mysqli_insert_id($con); // Dapatkan ID master yang baru saja di-generate
+        $id_m_hasil_uji = mysqli_insert_id($con);
         mysqli_stmt_close($stmt_master);
 
         if ($id_m_hasil_uji == 0) {
-            throw new Exception("Failed to get master ID after insertion.");
+            throw new Exception("Gagal mendapatkan ID master setelah proses insert.");
         }
 
-        // 2. Ambil detail parameter dari database berdasarkan id_paket
-        $query_param_details = "SELECT p.id_parameter, p.nama_parameter, p.satuan, p.kadar_maksimum, p.metode_uji, p.kategori 
-                                FROM detail_paket_pengujian_fisika_kimia dp
-                                JOIN parameter_uji p ON dp.id_parameter = p.id_parameter
-                                WHERE dp.id_paket = ? ORDER BY p.id_parameter ASC";
-        $stmt_param = mysqli_prepare($con, $query_param_details);
-        if (!$stmt_param) {
-            throw new Exception("Prepare statement param details failed: " . mysqli_error($con));
-        }
-        mysqli_stmt_bind_param($stmt_param, "i", $id_paket);
-        mysqli_stmt_execute($stmt_param);
-        $result_param = mysqli_stmt_get_result($stmt_param);
-
-        if (!$result_param) {
-            throw new Exception("Get param details result failed: " . mysqli_error($con));
-        }
-
-        // Siapkan untuk insert hasil_uji
-        $query_insert_hasil = "INSERT INTO hasil_uji (id_m_hasil_uji, nama_parameter, satuan, kadar_maksimum, metode_uji, kategori, hasil, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        $query_insert_hasil = "INSERT INTO hasil_uji (id_m_hasil_uji, nama_parameter, satuan, kadar_maksimum, metode_uji, kategori, hasil, status, keterangan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt_hasil = mysqli_prepare($con, $query_insert_hasil);
-        if (!$stmt_hasil) {
-            throw new Exception("Prepare statement hasil failed: " . mysqli_error($con));
-        }
 
-        $inserted_count = 0;
-        while ($param_detail = mysqli_fetch_assoc($result_param)) {
-            $current_param_id = $param_detail['id_parameter'];
+        foreach ($hasil_parameters as $param_id => $hasil_value) {
+            if (isset($param_details_from_form[$param_id])) {
+                $details = $param_details_from_form[$param_id];
 
-            // Periksa apakah parameter ini ada dalam data POST dan memiliki nilai
-            // Jika ada di POST dan tidak kosong, atau nilainya adalah 0 (angka), maka simpan
-            if (isset($hasil_parameters[$current_param_id]) && ($hasil_parameters[$current_param_id] !== '')) { // Memungkinkan string kosong jika Anda ingin menyimpannya
-                $hasil_value = mysqli_real_escape_string($con, $hasil_parameters[$current_param_id]);
+                $nama_parameter = $details['nama_parameter'];
+                $satuan         = $details['satuan'];
+                $kadar_maksimum = $details['kadar_maksimum'];
+                $metode_uji     = $details['metode_uji'];
+                $kategori       = $details['kategori'];
 
-                // Bind parameters dan eksekusi
+                $keterangan = cekKepatuhan($hasil_value, $kadar_maksimum);
+
                 mysqli_stmt_bind_param(
                     $stmt_hasil,
-                    "isssssss",
+                    "issssssss",
                     $id_m_hasil_uji,
-                    $param_detail['nama_parameter'],
-                    $param_detail['satuan'],
-                    $param_detail['kadar_maksimum'],
-                    $param_detail['metode_uji'],
-                    $param_detail['kategori'],
-                    $hasil_value, // Menggunakan nilai dari form POST
-                    $status // Menggunakan status dari form master
+                    $nama_parameter,
+                    $satuan,
+                    $kadar_maksimum,
+                    $metode_uji,
+                    $kategori,
+                    $hasil_value,
+                    $status,
+                    $keterangan
                 );
-
-                if (!mysqli_stmt_execute($stmt_hasil)) {
-                    throw new Exception("Execute hasil query for parameter ID " . $current_param_id . " failed: " . mysqli_stmt_error($stmt_hasil));
-                }
-                $inserted_count++;
+                mysqli_stmt_execute($stmt_hasil);
             }
-            // Jika parameter tidak ada di $hasil_parameters atau kosong, maka parameter ini diabaikan
         }
-
-        mysqli_stmt_close($stmt_param);
         mysqli_stmt_close($stmt_hasil);
 
-        if ($inserted_count === 0 && !empty($hasil_parameters)) {
-            // Jika ada parameter yang dikirim tapi tidak ada yang disimpan
-            // Ini bisa terjadi jika semua yang dikirim adalah string kosong (kalau Anda ingin string kosong diabaikan)
-            // Atau bisa juga semua parameter dihapus di client-side
-            throw new Exception("No valid detail parameters were submitted or saved.");
-        }
-
-        // Commit transaksi jika semua berhasil
         mysqli_commit($con);
-        header("Location: laporan.php?pesan=sukses_tambah");
+        header("Location: fisika_kimia.php?pesan=sukses_tambah");
         exit();
     } catch (Exception $e) {
-        // Rollback jika ada kesalahan
         mysqli_rollback($con);
-        error_log("Proses tambah data gagal: " . $e->getMessage());
-        header("Location: laporan.php?pesan=gagal&error_msg=" . urlencode($e->getMessage()));
+        header("Location: fisika_kimia.php?pesan=gagal&error_msg=" . urlencode($e->getMessage()));
         exit();
     }
 } else {
-    header("Location: laporan.php?pesan=gagal&error=invalid_request_method");
+    header("Location: fisika_kimia.php?pesan=gagal&error=invalid_request_method");
     exit();
+}
+
+if (isset($con)) {
+    mysqli_close($con);
 }

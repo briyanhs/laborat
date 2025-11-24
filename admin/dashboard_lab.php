@@ -1,323 +1,181 @@
 <!DOCTYPE html>
-<?php include '../database/database.php';
-include '../config.php';
-?>
 <?php
-$message = '';
-$alertType = 'success';
+include '../database/database.php';
+include '../config.php';
+session_start(); // Pastikan session_start() ada di awal, sebelum output apapun
 
-if (isset($_GET['pesan'])) {
-    switch ($_GET['pesan']) {
-        case 'sukses_tambah':
-            $message = '✅ Data berhasil ditambahkan.';
-            break;
-        case 'sukses_edit':
-            $message = '✏️ Data berhasil diperbarui.';
-            break;
-        case 'sukses_hapus':
-            $message = '🗑️ Data berhasil dihapus.';
-            break;
-        case 'gagal':
-            $alertType = 'danger';
-            $message = '❌ Terjadi kesalahan saat memproses data.';
-            break;
-    }
+if (!isset($_SESSION['status']) || $_SESSION['status'] != "login") {
+    header("location:../index.php?pesan=belum_login");
+    exit();
 }
-?>
 
+// Inisialisasi variabel untuk menghindari error jika query gagal
+$total_pengujian = 0;
+
+$query_summary = "
+    SELECT SUM(total) AS total_gabungan
+    FROM (
+        SELECT COUNT(*) AS total FROM master_hasil_uji_bacteriology
+        UNION ALL
+        SELECT COUNT(*) AS total FROM master_hasil_uji
+    ) AS subquery;";
+
+$result_summary = mysqli_query($con, $query_summary);
+
+if ($result_summary) {
+    $summary_data = mysqli_fetch_assoc($result_summary);
+    $total_pengujian = $summary_data['total_gabungan'] ?? 0;
+}
+
+//jml_proses
+$total_proses = 0;
+$query_proses = "
+    SELECT SUM(jml_proses) AS total_proses
+    FROM (
+    SELECT COUNT(DISTINCT master_hasil_uji_bacteriology.id_m_hasil_uji) AS jml_proses
+    FROM master_hasil_uji_bacteriology
+    INNER JOIN hasil_uji_bacteriology ON master_hasil_uji_bacteriology.id_m_hasil_uji = hasil_uji_bacteriology.id_m_hasil_uji
+    WHERE hasil_uji_bacteriology.status = 'Proses'
+
+    UNION ALL
+
+    SELECT COUNT(DISTINCT master_hasil_uji.id_m_hasil_uji) AS jml_proses
+    FROM master_hasil_uji
+    INNER JOIN hasil_uji ON master_hasil_uji.id_m_hasil_uji = hasil_uji.id_m_hasil_uji
+    WHERE hasil_uji.status = 'Proses'
+) AS subquery;";
+
+$result_proses = mysqli_query($con, $query_proses);
+
+if ($result_proses) {
+    $proses_data = mysqli_fetch_assoc($result_proses);
+    $total_proses = $proses_data['total_proses'] ?? 0;
+}
+
+//jml_selesai
+$total_selesai = 0;
+$query_selesai = "
+    SELECT SUM(jml_selesai) AS total_selesai
+    FROM (
+    SELECT COUNT(DISTINCT master_hasil_uji_bacteriology.id_m_hasil_uji) AS jml_selesai
+    FROM master_hasil_uji_bacteriology
+    INNER JOIN hasil_uji_bacteriology ON master_hasil_uji_bacteriology.id_m_hasil_uji = hasil_uji_bacteriology.id_m_hasil_uji
+    WHERE hasil_uji_bacteriology.status = 'Selesai'
+
+    UNION ALL
+
+    SELECT COUNT(DISTINCT master_hasil_uji.id_m_hasil_uji) AS jml_selesai
+    FROM master_hasil_uji
+    INNER JOIN hasil_uji ON master_hasil_uji.id_m_hasil_uji = hasil_uji.id_m_hasil_uji
+    WHERE hasil_uji.status = 'Selesai'
+) AS subquery;";
+
+$result_selesai = mysqli_query($con, $query_selesai);
+
+if ($result_selesai) {
+    $selesai_data = mysqli_fetch_assoc($result_selesai);
+    $total_selesai = $selesai_data['total_selesai'] ?? 0;
+}
+
+?>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Lab Dashboard</title>
+    <title>Dashboard</title>
     <link href="<?= BASE_URL ?>bootstrap/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="<?= BASE_URL ?>admin/style.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>fontawesome/css/font-awesome.min.css">
-    <!--datatables-->
     <link rel="stylesheet" type="text/css" href="<?= BASE_URL ?>datatables/datatables.css" />
-    <script type="text/javascript" src="<?= BASE_URL ?>datatables/datatables.js"></script>
-
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="<?= BASE_URL ?>admin/style.css" rel="stylesheet">
+    
 
 </head>
 
 <body>
-    <?php
-    session_start();
-    if ($_SESSION['status'] != "login") {
-        header("location:../index.php?pesan=belum_login");
-    }
-    ?>
-    <div class="d-flex">
-        <!-- Sidebar -->
-        <div class="sidebar p-2">
-            <div class="logo">
+    <div class="d-flex" id="wrapper">
+        <div class="sidebar p-2" id="sidebar-wrapper">
+            <div class="sidebar-heading">
                 LABORATORIUM<br>PDAM SURAKARTA
             </div>
-            <div class="logo-line"></div>
-            <a href="dashboard_lab.php">Dashboard</a>
-            <a href="laporan.php">Laporan</a>
-
+            <a href="dashboard_lab.php" class="active"><i class="fas fa-fw fa-tachometer-alt"></i> <span>Dashboard</span></a>
+            <a href="fisika_kimia.php"><i class="fas fa-fw fa-microscope"></i> <span>Fisika dan Kimia</span></a>
+            <a href="bacteriology.php"><i class="fas fa-fw fa-flask"></i> <span>Mikrobiologi</span></a>
+            <a href="laporan.php"><i class="fas fa-fw fa-archive"></i> <span>Laporan</span></a>
+            <a href="pengaturan.php"><i class="fas fa-fw fa-gear"></i> <span>Pengaturan</span></a>
+            <a href="<?= BASE_URL ?>logout/logout.php"><i class="fas fa-fw fa-sign-out-alt"></i> <span>Log Out</span></a>
         </div>
-
-        <!-- Main Content -->
-        <div class="flex-grow-1">
-            <!-- Header -->
-            <div class="dashboard-header d-flex justify-content-between align-items-center">
+        <div class="flex-grow-1" id="page-content-wrapper">
+            <div class="dashboard-header">
+                <button class="btn btn-primary navbar-toggler-custom" id="menu-toggle">
+                    <span class="fas fa-bars"></span>
+                </button>
                 <h4 class="mb-0">Laboratory Dashboard</h4>
-                <div>
-                    <a href="<?= BASE_URL ?>logout/logout.php" class="btn btn-outline-danger">Log Out</a>
-                </div>
+                <a href="<?= BASE_URL ?>logout/logout.php" class="btn btn-outline-danger d-none d-md-block">Log Out</a>
             </div>
 
-            <!-- Dashboard Content -->
-            <div class="container-fluid mt-3">
-                <div class="row g-4">
-                    <div class="col-md-4">
-                        <div class="card shadow card-lab p-2">
-                            <h5>Total Samples</h5>
-                            <h2>245</h2>
-                            <p class="text-muted">Updated 2 hours ago</p>
+            <div class="content-fluid mt-3">
+                <div class="row">
+                    <div class="col-xl-4 col-md-6 mb-4">
+                        <div class="card dashboard-card-hover text-white bg-primary bg-gradient shadow-sm rounded-4 h-100">
+                            <div class="card-body d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="text-white-75 small text-uppercase fw-bold">Total Pengujian</div>
+                                    <div class="h3 fw-bold mb-0"><?= $total_pengujian ?></div>
+                                </div>
+                                <i class="fas fa-flask fa-3x text-white-50"></i>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="card shadow card-lab p-2">
-                            <h5>In Progress</h5>
-                            <h2>58</h2>
-                            <p class="text-muted">Running Tests</p>
+
+                    <div class="col-xl-4 col-md-6 mb-4">
+                        <div class="card dashboard-card-hover text-white bg-warning bg-gradient shadow-sm rounded-4 h-100">
+                            <div class="card-body d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="text-white-75 small text-uppercase fw-bold">Status Proses</div>
+                                    <div class="h3 fw-bold mb-0"><?= $total_proses ?></div>
+                                </div>
+                                <i class="fas fa-hourglass-half fa-3x text-white-50"></i>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="card shadow card-lab p-2">
-                            <h5>Completed</h5>
-                            <h2>187</h2>
-                            <p class="text-muted">Reports Sent</p>
+
+                    <div class="col-xl-4 col-md-6 mb-4">
+                        <div class="card dashboard-card-hover text-white bg-success bg-gradient shadow-sm rounded-4 h-100">
+                            <div class="card-body d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="text-white-75 small text-uppercase fw-bold">Status Selesai</div>
+                                    <div class="h3 fw-bold mb-0"><?= $total_selesai ?></div>
+                                </div>
+                                <i class="fas fa-check-circle fa-3x text-white-50"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-
-                <div class="mt-3 d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Recent Activity</h5>
-                    <!-- Tombol Tambah Data -->
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalTambah">
-                        Tambah Data
-                    </button>
-
-
-                </div>
-                <table id="tabelLab" class="table table-striped table-bordered nowrap" style="width:100%">
-                    <thead class="table-primary">
-                        <tr>
-                            <th>ID</th>
-                            <th>No Lab</th>
-                            <th>Pemohon</th>
-                            <th>Status</th>
-                            <th>Alamat</th>
-                            <th>Tanggal</th>
-                            <th>Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-
-                        <?php
-                        $query = "SELECT * FROM lap_hasil_uji";
-                        $sql = mysqli_query($con, $query);
-                        $no = 0;
-                        ?>
-                        <?php
-                        while ($result = mysqli_fetch_assoc($sql)) {
-
-                        ?>
-                            <tr>
-                                <td><?php echo $result['id_hasil_uji']; ?></td>
-                                <td><?php echo $result['no_lab']; ?></td>
-                                <td><?php echo $result['pemohon']; ?></td>
-                                <td><?php echo $result['status']; ?></td>
-                                <td><?php echo $result['alamat']; ?></td>
-                                <td><?php echo $result['tgl_lap']; ?></td>
-                                <td>
-                                    <!-- Tombol Edit -->
-                                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalEdit<?= $result['id_hasil_uji'] ?>">
-                                        <i class="fa fa-pencil"></i>
-                                    </button>
-
-                                    <!-- Tombol Hapus -->
-                                    <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modalHapus<?= $result['id_hasil_uji'] ?>">
-                                        <i class="fa fa-trash"></i>
-                                    </button>
-                                </td>
-
-                            </tr>
-                            <!-- Modal Edit -->
-                            <div class="modal fade" id="modalEdit<?= $result['id_hasil_uji'] ?>" tabindex="-1">
-                                <div class="modal-dialog">
-                                    <form action="<?= BASE_URL ?>lab/proses_edit.php" method="POST">
-                                        <input type="hidden" name="id_hasil_uji" value="<?= $result['id_hasil_uji'] ?>">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Edit Data - No Lab <?= $result['no_lab'] ?></h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <div class="mb-3">
-                                                    <label>No Lab</label>
-                                                    <input type="text" name="no_lab" class="form-control" value="<?= $result['no_lab'] ?>" required>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label>Pemohon</label>
-                                                    <input type="text" name="pemohon" class="form-control" value="<?= $result['pemohon'] ?>" required>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label>Status</label>
-                                                    <select name="status" class="form-control" required>
-                                                        <option value="In Progress" <?= $result['status'] == 'In Progress' ? 'selected' : '' ?>>In Progress</option>
-                                                        <option value="Completed" <?= $result['status'] == 'Completed' ? 'selected' : '' ?>>Completed</option>
-                                                    </select>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label>Alamat</label>
-                                                    <input type="text" name="alamat" class="form-control" value="<?= $result['alamat'] ?>" required>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label>Tanggal</label>
-                                                    <input type="date" name="tgl_lap" class="form-control" value="<?= $result['tgl_lap'] ?>" required>
-                                                </div>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                                                <button type="submit" class="btn btn-primary">Simpan</button>
-                                            </div>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                            <!-- Modal Hapus -->
-                            <div class="modal fade" id="modalHapus<?= $result['id_hasil_uji'] ?>" tabindex="-1">
-                                <div class="modal-dialog">
-                                    <form action="<?= BASE_URL ?>lab/proses_hapus.php" method="POST">
-                                        <input type="hidden" name="id_hasil_uji" value="<?= $result['id_hasil_uji'] ?>">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Konfirmasi Hapus</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <p>Yakin ingin menghapus data dengan No Lab <strong><?= $result['no_lab'] ?></strong>?</p>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                                                <button type="submit" class="btn btn-danger">Hapus</button>
-                                            </div>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-
-
-
-                        <?php
-                        }
-                        ?>
-                        <!-- Modal Tambah Data -->
-                        <div class="modal fade" id="modalTambah" tabindex="-1" aria-labelledby="modalTambahLabel" aria-hidden="true">
-                            <div class="modal-dialog">
-                                <form action="<?= BASE_URL ?>lab/proses_tambah.php" method="POST">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title" id="modalTambahLabel">Tambah Data</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <div class="mb-3">
-                                                <label>No Lab</label>
-                                                <input type="text" name="no_lab" class="form-control" required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label>Pemohon</label>
-                                                <input type="text" name="pemohon" class="form-control" required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label>Status</label>
-                                                <select name="status" class="form-control" required>
-                                                    <option value="In Progress">In Progress</option>
-                                                    <option value="Completed">Completed</option>
-                                                </select>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label>Alamat</label>
-                                                <input type="text" name="alamat" class="form-control" required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label>Tanggal</label>
-                                                <input type="date" name="tgl_lap" class="form-control" required>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                                            <button type="submit" class="btn btn-primary">Simpan</button>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-
-                    </tbody>
-                </table>
-
+                <?php if (!empty($message)): ?>
+                    <div class="alert alert-<?php echo $alertType; ?> alert-dismissible fade show" role="alert">
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
-    <?php if (!empty($message)): ?>
-        <!-- Toast Container -->
-        <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055">
-            <div id="toastPesan" class="toast align-items-center text-bg-<?= $alertType ?> border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body">
-                        <?= $message ?>
-                    </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-            </div>
-        </div>
-    <?php endif; ?>
 
 
-
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="<?= BASE_URL ?>bootstrap/js/bootstrap.bundle.min.js"></script>
-    <script>
-        window.addEventListener('DOMContentLoaded', () => {
-            const toastEl = document.getElementById('toastPesan');
-            if (toastEl) {
-                const toast = new bootstrap.Toast(toastEl, {
-                    delay: 4000
-                });
-                toast.show();
-                // Bersihkan parameter URL agar tidak muncul saat refresh
-                const url = new URL(window.location);
-                url.searchParams.delete('pesan');
-                window.history.replaceState({}, document.title, url);
-            }
-        });
-    </script>
+    <script type="text/javascript" src="<?= BASE_URL ?>datatables/datatables.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
+
     <script>
         $(document).ready(function() {
-            $('#tabelLab').DataTable({
-                responsive: true, // tetap responsif di HP
-                scrollX: true, // scroll horizontal aktif
-                scrollY: '37vh', // scroll vertikal aktif
-                scrollCollapse: true,
-                paging: false, // tanpa pagination
-                info: false, // sembunyikan info
-                lengthChange: false,
-                language: {
-                    search: "Cari:",
-                    zeroRecords: "Data tidak ditemukan"
-                }
+            // Toggle sidebar
+            $("#menu-toggle").click(function(e) {
+                e.preventDefault();
+                $("#wrapper").toggleClass("toggled");
             });
         });
     </script>
-
-
 
 </body>
 

@@ -6,16 +6,12 @@ include '../config.php';
 
 mysqli_set_charset($con, "utf8mb4");
 
-// == SINTAKS V6/V7 DIMULAI DARI SINI ==
 use Dompdf\Dompdf;
 use Dompdf\Options;
-// Gunakan class yang benar untuk endroid/qr-code v6/v7
 use Endroid\QrCode\Builder\Builder; // <--- PENTING UNTUK 'Builder::create()'
 use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel;
-use Endroid\QrCode\Writer\PngWriter; // Gunakan PngWriter dan buat data URI secara manual
-
-
+use Endroid\QrCode\Writer\PngWriter;
 // Pastikan ID Master Hasil Uji diterima
 if (!isset($_GET['id_m_hasil_uji']) || !is_numeric($_GET['id_m_hasil_uji'])) {
     die("ID Master Hasil Uji tidak valid.");
@@ -24,12 +20,13 @@ if (!isset($_GET['id_m_hasil_uji']) || !is_numeric($_GET['id_m_hasil_uji'])) {
 $id_m_hasil_uji = $_GET['id_m_hasil_uji'];
 
 // --- Ambil Data Master Hasil Uji (Gunakan query Anda yang benar) ---
-//$query_master = "SELECT m.*, u.nama as verifier_name 
-  //               FROM master_hasil_uji m 
-    //             LEFT JOIN user u ON m.verified_by_user_id = u.id_user
-      //           WHERE m.id_m_hasil_uji = ?";
+$query_master = "SELECT m.*, u.nama as verifier_name 
+                 FROM master_hasil_uji_bacteriology m 
+                 LEFT JOIN user u ON m.verified_by_user_id = u.id_user
+                 WHERE m.id_m_hasil_uji = ?";
+// SAYA SALAH, INI SEHARUSNYA TIDAK ADA LAGI. 
 // Query master tidak perlu join user lagi.
-$query_master = "SELECT * FROM master_hasil_uji WHERE id_m_hasil_uji = ?";
+$query_master = "SELECT * FROM master_hasil_uji_bacteriology WHERE id_m_hasil_uji = ?";
 
 $stmt_master = mysqli_prepare($con, $query_master);
 mysqli_stmt_bind_param($stmt_master, "i", $id_m_hasil_uji);
@@ -50,7 +47,7 @@ $query_log = "
     SELECT u.nama 
     FROM log_verifikasi lv
     JOIN user u ON lv.id_user_verifier = u.id_user
-    WHERE lv.id_hasil_uji = ? AND lv.tipe_uji = 'fisika'
+    WHERE lv.id_hasil_uji = ? AND lv.tipe_uji = 'bakteri'
 ";
 $stmt_log = mysqli_prepare($con, $query_log);
 mysqli_stmt_bind_param($stmt_log, "i", $id_m_hasil_uji);
@@ -80,23 +77,21 @@ if (!empty($master_data['verification_token'])) {
 }
 // --- LOGIKA QR CODE SELESAI ---
 
-
 // --- Ambil Data Detail Parameter Hasil Uji ---
 $query_detail = "
     SELECT
-        id, hasil, nama_parameter, satuan, kadar_maksimum,
-        metode_uji, kategori, keterangan
+        id,
+        hasil,
+        penegasan,
+        nama_parameter,
+        satuan,
+        nilai_baku_mutu,
+        keterangan,
+        metode_uji
     FROM
-        hasil_uji
+        hasil_uji_bacteriology
     WHERE
-        id_m_hasil_uji = ?
-    ORDER BY
-        CASE
-            WHEN kategori = 'Fisika' THEN 1
-            WHEN kategori = 'Kimia' THEN 2
-            ELSE 3
-        END,
-        nama_parameter ASC;
+        id_m_hasil_uji = ?;
 ";
 
 $stmt_detail = mysqli_prepare($con, $query_detail);
@@ -108,22 +103,16 @@ while ($row = mysqli_fetch_assoc($result_detail)) {
     $detail_data[] = $row;
 }
 
-// Group parameters by category
-$grouped_parameters = [];
-foreach ($detail_data as $param) {
-    $grouped_parameters[$param['kategori']][] = $param;
-}
-
 // --- Inisialisasi Dompdf ---
 $options = new Options();
 $options->set('isHtml5ParserEnabled', true);
 $options->set('isRemoteEnabled', true);
 $dompdf = new Dompdf($options);
 
-// --- Capture HTML Output (Output Buffering) ---
-ob_start(); // Mulai output buffering
-include '../admin/generate_template.php'; // Masukkan file template HTML Anda
-$html = ob_get_clean(); // Ambil semua output dan simpan ke $html
+// Menggunakan output buffering untuk menangkap output dari file template
+ob_start();
+include 'generate_template_bacteriology.php';
+$html = ob_get_clean();
 
 $dompdf->loadHtml($html);
 
@@ -131,7 +120,6 @@ $dompdf->setPaper(array(0, 0, 612.28, 935.43), 'portrait');
 
 $dompdf->render();
 
-$dompdf->stream("Laporan_Hasil_Uji_" . $master_data['no_analisa'] . ".pdf", array("Attachment" => FALSE));
+$dompdf->stream("Laporan Hasil Uji Bakteriologi " . $master_data['no_analisa'] . ".pdf", array("Attachment" => FALSE));
 
-// Tutup koneksi database
 mysqli_close($con);
