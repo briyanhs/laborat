@@ -27,49 +27,66 @@
 
 	<?php
 	include 'database/database.php';
-
 	session_start();
 
+	// 1. Ambil input (JANGAN di-MD5-kan lagi!)
 	$username = $_POST['username'];
-	$password = md5($_POST['password']);
+	$password_input = $_POST['password'];
 
-	// Pastikan kolom-kolom ini sesuai dengan tabel user Anda (id_user, username, password, level, nama)
-	$login = mysqli_query($con, "select id_user, username, level, nama from user where username='$username' and password='$password'");
-	$cek = mysqli_num_rows($login);
+	// 2. Ambil data user berdasarkan username saja
+	// Kita gunakan Prepared Statement agar aman dari hack SQL Injection
+	$stmt = mysqli_prepare($con, "SELECT * FROM user WHERE username = ?");
+	mysqli_stmt_bind_param($stmt, "s", $username);
+	mysqli_stmt_execute($stmt);
+	$result = mysqli_stmt_get_result($stmt);
 
-	if ($cek > 0) {
-		$data = mysqli_fetch_assoc($login);
+	// 3. Cek apakah username ditemukan?
+	if ($row = mysqli_fetch_assoc($result)) {
 
-		$_SESSION['username'] = $username;
-		$_SESSION['status'] = "login";
-		$_SESSION['user_id'] = $data['id_user'];
-		$_SESSION['nama_lengkap'] = $data['nama'];
+		// 4. Cek Password menggunakan password_verify()
+		// Ini akan mencocokkan input "123456" dengan hash "$2y$10$..." di database
+		if (password_verify($password_input, $row['password'])) {
 
-		// Tentukan target redirect
-		$redirect_url = ($data['level'] == "Admin") ? 'admin/dashboard_lab.php' : 'user/halaman_user.php';
+			// === LOGIN BERHASIL ===
 
-		// Set session level
-		$_SESSION['level'] = $data['level'];
+			// Regenerasi ID session biar aman
+			session_regenerate_id(true);
 
-		// Tampilkan Notifikasi Minimalis
-		echo "<script>
-        Swal.fire({
-            icon: 'success',
-            title: 'Login Berhasil',
-            text: 'Selamat datang, " . $data['nama'] . "',
-            width: 320,             // Lebar kotak lebih kecil (minimalis)
-            padding: '1em',         // Padding lebih rapat
-            timer: 3000,            // Waktu tampil lebih cepat (1.5 detik)
-            showConfirmButton: false,
-            backdrop: `rgba(0,0,0,0.3)`, // Background redup yang lebih soft
-            position: 'center'      // Posisi tetap di tengah
-        }).then(() => {
-            window.location.href = '$redirect_url';
-        });
-    </script>";
+			$_SESSION['username'] = $username;
+			$_SESSION['status'] = "login";
+			$_SESSION['user_id'] = $row['id_user'];
+			$_SESSION['nama_lengkap'] = $row['nama']; // Mengambil nama asli dari database
+			$_SESSION['level'] = $row['level'];
+
+			// Arahkan sesuai level
+			$redirect_url = ($row['level'] == "Admin") ? 'admin/dashboard_lab.php' : 'user/halaman_user.php';
+
+			echo "<script>
+            Swal.fire({
+                icon: 'success',
+                title: 'Login Berhasil',
+                text: 'Selamat datang, " . htmlspecialchars($row['nama']) . "',
+                width: 320,
+                padding: '1em',
+                timer: 1500,
+                showConfirmButton: false,
+                backdrop: `rgba(0,0,0,0.3)`,
+                position: 'center'
+            }).then(() => {
+                window.location.href = '$redirect_url';
+            });
+        </script>";
+		} else {
+			// Password Salah
+			header("location:index.php?pesan=gagal");
+		}
 	} else {
+		// Username Tidak Ditemukan
 		header("location:index.php?pesan=gagal");
 	}
+
+	mysqli_stmt_close($stmt);
+	mysqli_close($con);
 	?>
 
 </body>
