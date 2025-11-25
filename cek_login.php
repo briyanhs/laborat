@@ -1,55 +1,77 @@
-<link href="bootstrap/css/bootstrap.min.css" rel="stylesheet">
+<!DOCTYPE html>
+<html lang="id">
 
-<?php include 'database/database.php';
-//aktifkan session
-session_start();
-//menangkap data dari form login
-$username = $_POST['username'];
-$password = md5($_POST['password']);
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Proses Login</title>
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+	<style>
+		body {
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			background-color: #f4f6f9;
+		}
 
-// menyeleksi data user dengan username dan password yang sesuai
-$login = mysqli_query($con, "select id_user, username, level, nama from user where username='$username' and password='$password'");
+		.swal2-popup {
+			font-size: 0.9rem !important;
+			border-radius: 15px !important;
+		}
 
-// menghitung jumlah data yang ditemukan
-$cek = mysqli_num_rows($login);
-// cek apakah username dan password di temukan pada database
-if ($cek > 0) {
+		.swal2-title {
+			font-size: 1.2rem !important;
+		}
+	</style>
+</head>
 
-	$data = mysqli_fetch_assoc($login);
+<body>
 
-	// cek jika user login sebagai admin
-	if ($data['level'] == "Admin") {
+	<?php
+	include 'database/database.php';
 
-		// buat session login dan username
-		$_SESSION['id_user'] = $data['id_user'];
-		$_SESSION['nama'] = $data['nama'];
+	session_start();
+
+	$username = $_POST['username'];
+	$password = md5($_POST['password']);
+
+	// Pastikan kolom-kolom ini sesuai dengan tabel user Anda (id_user, username, password, level, nama)
+	$login = mysqli_query($con, "select id_user, username, level, nama from user where username='$username' and password='$password'");
+	$cek = mysqli_num_rows($login);
+
+	if ($cek > 0) {
+		$data = mysqli_fetch_assoc($login);
+
 		$_SESSION['username'] = $username;
-		$_SESSION['level'] = "Admin";
 		$_SESSION['status'] = "login";
-		// alihkan ke halaman dashboard admin
-		echo '<div class="alert alert-success text-center" role="alert">Berhasil Log In</div>';
-		header("refresh: 2; url=admin/dashboard_lab.php");
-		//header("location:admin/dashboard_lab.php");
+		$_SESSION['user_id'] = $data['id_user'];
+		$_SESSION['nama_lengkap'] = $data['nama'];
 
-		// cek jika user login sebagai user
-	} else if ($data['level'] == "User") {
-		// buat session login dan username
-		$_SESSION['id_user'] = $data['id_user'];
-		$_SESSION['nama'] = $data['nama'];
-		$_SESSION['username'] = $username;
-		$_SESSION['level'] = "User";
-		$_SESSION['status'] = "login";
-		// alihkan ke halaman dashboard user
-		echo '<div class="alert alert-success text-center" role="alert">Berhasil Log In</div>';
-		header("refresh: 2; url=user/halaman_user.php");
-		//header("location:user/halaman_user.php");
+		// Tentukan target redirect
+		$redirect_url = ($data['level'] == "Admin") ? 'admin/dashboard_lab.php' : 'user/halaman_user.php';
 
+		// Set session level
+		$_SESSION['level'] = $data['level'];
+
+		// Tampilkan Notifikasi Minimalis
+		echo "<script>
+        Swal.fire({
+            icon: 'success',
+            title: 'Login Berhasil',
+            text: 'Selamat datang, " . $data['nama'] . "',
+            width: 320,             // Lebar kotak lebih kecil (minimalis)
+            padding: '1em',         // Padding lebih rapat
+            timer: 3000,            // Waktu tampil lebih cepat (1.5 detik)
+            showConfirmButton: false,
+            backdrop: `rgba(0,0,0,0.3)`, // Background redup yang lebih soft
+            position: 'center'      // Posisi tetap di tengah
+        }).then(() => {
+            window.location.href = '$redirect_url';
+        });
+    </script>";
 	} else {
-		// alihkan ke halaman login kembali
 		header("location:index.php?pesan=gagal");
 	}
-} else {
-	header("location:index.php?pesan=gagal");
-}
+	?>
 
-?>
+</body>
+
+</html>

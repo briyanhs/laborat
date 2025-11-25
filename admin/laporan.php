@@ -172,6 +172,11 @@ if ($jenis_laporan === 'fisika') {
                                 <div class="col-md-4"><label for="bulan" class="form-label">Pilih Bulan</label><select name="bulan" id="bulan" class="form-select"><?php for ($i = 1; $i <= 12; $i++): ?><option value="<?= $i; ?>" <?= ($i == $bulan) ? 'selected' : ''; ?>><?= htmlspecialchars($nama_bulan[$i]); ?></option><?php endfor; ?></select></div>
                                 <div class="col-md-4"><label for="tahun" class="form-label">Tahun</label><input type="number" name="tahun" id="tahun" class="form-control" value="<?= htmlspecialchars($tahun); ?>"></div>
                                 <div class="col-md-4 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-2"></i>Tampilkan</button></div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <a href="export_laporan.php?jenis=fisika&bulan=<?= $bulan ?>&tahun=<?= $tahun ?>" target="_blank" class="btn btn-danger w-100">
+                                        <i class="fas fa-file-pdf me-2"></i>Export PDF
+                                    </a>
+                                </div>
                             </form>
                             <hr>
                             <h4 class="text-center mt-4">Hasil Pemeriksaan Parameter Fisika Air</h4>
@@ -228,6 +233,11 @@ if ($jenis_laporan === 'fisika') {
                                 <div class="col-md-4"><label for="bulan" class="form-label">Pilih Bulan</label><select name="bulan" id="bulan" class="form-select"><?php for ($i = 1; $i <= 12; $i++): ?><option value="<?= $i; ?>" <?= ($i == $bulan) ? 'selected' : ''; ?>><?= htmlspecialchars($nama_bulan[$i]); ?></option><?php endfor; ?></select></div>
                                 <div class="col-md-4"><label for="tahun" class="form-label">Tahun</label><input type="number" name="tahun" id="tahun" class="form-control" value="<?= htmlspecialchars($tahun); ?>"></div>
                                 <div class="col-md-4 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-2"></i>Tampilkan</button></div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <a href="export_laporan.php?jenis=kimia&bulan=<?= $bulan ?>&tahun=<?= $tahun ?>" target="_blank" class="btn btn-danger w-100">
+                                        <i class="fas fa-file-pdf me-2"></i>Export PDF
+                                    </a>
+                                </div>
                             </form>
                             <hr>
                             <h4 class="text-center mt-4">Hasil Pemeriksaan Parameter Kimia Air</h4>
@@ -306,6 +316,11 @@ if ($jenis_laporan === 'fisika') {
                                 <div class="col-md-4"><label for="bulan" class="form-label">Pilih Bulan</label><select name="bulan" id="bulan" class="form-select"><?php for ($i = 1; $i <= 12; $i++): ?><option value="<?= $i; ?>" <?= ($i == $bulan) ? 'selected' : ''; ?>><?= htmlspecialchars($nama_bulan[$i]); ?></option><?php endfor; ?></select></div>
                                 <div class="col-md-4"><label for="tahun" class="form-label">Tahun</label><input type="number" name="tahun" id="tahun" class="form-control" value="<?= htmlspecialchars($tahun); ?>"></div>
                                 <div class="col-md-4 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-2"></i>Tampilkan</button></div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <a href="export_laporan.php?jenis=mikrobiologi&bulan=<?= $bulan ?>&tahun=<?= $tahun ?>" target="_blank" class="btn btn-danger w-100">
+                                        <i class="fas fa-file-pdf me-2"></i>Export PDF
+                                    </a>
+                                </div>
                             </form>
                             <hr>
                             <h4 class="text-center mt-4">Hasil Pemeriksaan Parameter Mikrobiologi</h4>
@@ -323,7 +338,7 @@ if ($jenis_laporan === 'fisika') {
                                             <th class="text-center">Tes Coli Tinja</th>
                                             <th class="text-center">pH</th>
                                             <th class="text-center">Sisa Khlor</th>
-                                            
+
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -343,7 +358,7 @@ if ($jenis_laporan === 'fisika') {
                                                     <td><?= htmlspecialchars($row['sisa_khlor']); ?></td>
 
                                                     <!--masih kurang penegasan-->
-                                                    
+
                                                 </tr><?php endwhile;
                                                 else: ?><tr>
                                                 <td colspan="9" class="text-center">Tidak ada data untuk periode yang dipilih.</td>
