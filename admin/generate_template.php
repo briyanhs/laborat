@@ -371,7 +371,7 @@
                 // PASTIKAN STRING INI SAMA PERSIS DENGAN ISI DI KOLOM 'nama' DATABASE ANDA
                 if (isset($verifiers['Sarwoko Priyo Saptono, S.H'])):
                 ?>
-                    <p>Mengetahui:<br>Direksi PERUMDA Air Minum Kota Surakarta<br>Direktur Teknik,</p>
+                    <!--<p>Mengetahui:<br>Direksi PERUMDA Air Minum Kota Surakarta<br>Direktur Teknik,</p>-->
                     <p style="font-size: 8pt; margin-top: 14px; margin-bottom: 2px;">Telah Diverifikasi Secara Digital</p>
                     <img src="<?php echo $qrCodeBase64; ?>" alt="Verifikasi" style="width: 50px; height: 50px; margin-bottom: 5px;">
                     <p style="margin-top: 2px;">

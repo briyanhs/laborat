@@ -9,8 +9,8 @@ if (!isset($_SESSION['status']) || $_SESSION['status'] != "login" || $_SESSION['
     exit();
 }
 
-$user_nama = $_SESSION['nama'];
-$user_id = $_SESSION['id_user'];
+$user_nama = $_SESSION['nama_lengkap']; // Sesuai dengan cek_login.php
+$user_id = $_SESSION['user_id'];        // Sesuai dengan cek_login.php
 
 // Tentukan halaman mana yang aktif (Default: pending)
 $view = isset($_GET['view']) ? $_GET['view'] : 'pending';

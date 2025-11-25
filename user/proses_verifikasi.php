@@ -10,7 +10,7 @@ if (!isset($_SESSION['status']) || $_SESSION['status'] != "login" || $_SESSION['
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $id_m_hasil_uji = $_POST['id_m_hasil_uji'];
     $tipe = $_POST['tipe'];
-    $user_id = $_SESSION['id_user']; // Menggunakan id_user sesuai database Anda
+    $user_id = $_SESSION['user_id']; // Menggunakan id_user sesuai database Anda
 
     // Tentukan tabel master untuk mengecek token
     $master_table = ($tipe == 'fisika') ? 'master_hasil_uji' : 'master_hasil_uji_bacteriology';

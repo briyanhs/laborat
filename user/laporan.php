@@ -15,9 +15,18 @@ $jenis_laporan = isset($_GET['jenis']) ? $_GET['jenis'] : null;
 $bulan = isset($_GET['bulan']) ? (int)$_GET['bulan'] : date('n');
 $tahun = isset($_GET['tahun']) ? (int)$_GET['tahun'] : date('Y');
 $nama_bulan = [
-    1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
-    5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
-    9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+    1 => 'Januari',
+    2 => 'Februari',
+    3 => 'Maret',
+    4 => 'April',
+    5 => 'Mei',
+    6 => 'Juni',
+    7 => 'Juli',
+    8 => 'Agustus',
+    9 => 'September',
+    10 => 'Oktober',
+    11 => 'November',
+    12 => 'Desember'
 ];
 
 // --- LOGIKA QUERY BERDASARKAN JENIS LAPORAN ---
@@ -89,6 +98,7 @@ if ($jenis_laporan === 'fisika') {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -97,11 +107,13 @@ if ($jenis_laporan === 'fisika') {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
     <style>
-        .table-laporan th, .table-laporan td {
+        .table-laporan th,
+        .table-laporan td {
             font-size: 0.85rem;
             vertical-align: middle;
             white-space: nowrap;
         }
+
         .wilayah-header th {
             background-color: #e9ecef !important;
             text-align: left !important;
@@ -110,11 +122,12 @@ if ($jenis_laporan === 'fisika') {
         }
     </style>
 </head>
+
 <body>
     <div class="d-flex" id="wrapper">
         <div class="sidebar p-2" id="sidebar-wrapper">
             <div class="sidebar-heading">VERIFIKATOR<br>PDAM SURAKARTA</div>
-            
+
             <a href="halaman_user.php?view=pending">
                 <i class="fas fa-fw fa-hourglass-half"></i> <span>Daftar Tunggu</span>
             </a>
@@ -163,6 +176,11 @@ if ($jenis_laporan === 'fisika') {
                                 <div class="col-md-4"><label for="bulan" class="form-label">Pilih Bulan</label><select name="bulan" id="bulan" class="form-select"><?php for ($i = 1; $i <= 12; $i++): ?><option value="<?= $i; ?>" <?= ($i == $bulan) ? 'selected' : ''; ?>><?= htmlspecialchars($nama_bulan[$i]); ?></option><?php endfor; ?></select></div>
                                 <div class="col-md-4"><label for="tahun" class="form-label">Tahun</label><input type="number" name="tahun" id="tahun" class="form-control" value="<?= htmlspecialchars($tahun); ?>"></div>
                                 <div class="col-md-4 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-2"></i>Tampilkan</button></div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <a href="export_laporan.php?jenis=fisika&bulan=<?= $bulan ?>&tahun=<?= $tahun ?>" target="_blank" class="btn btn-danger w-100">
+                                        <i class="fas fa-file-pdf me-2"></i>Export PDF
+                                    </a>
+                                </div>
                             </form>
                             <hr>
                             <h4 class="text-center mt-4">Hasil Pemeriksaan Parameter Fisika Air</h4>
@@ -183,18 +201,24 @@ if ($jenis_laporan === 'fisika') {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php if ($result->num_rows > 0): $no = 1; $current_wilayah = null;
-                                        while ($row = $result->fetch_assoc()): if ($row['wilayah'] != $current_wilayah): $current_wilayah = $row['wilayah']; ?><tr class="wilayah-header"><th colspan="9"> <?= strtoupper(htmlspecialchars($current_wilayah)); ?></th></tr><?php endif; ?><tr>
-                                            <td class="text-center"><?= $no++; ?></td>
-                                            <td><?= htmlspecialchars($row['no_analisa']); ?></td>
-                                            <td><?= htmlspecialchars($row['sampel']); ?></td>
-                                            <td><?= date('d-m-Y', strtotime($row['tanggal_pengujian'])); ?></td>
-                                            <td><?= htmlspecialchars($row['suhu']); ?></td>
-                                            <td><?= htmlspecialchars($row['tds']); ?></td>
-                                            <td><?= htmlspecialchars($row['kekeruhan']); ?></td>
-                                            <td><?= htmlspecialchars($row['warna']); ?></td>
-                                            <td><?= htmlspecialchars($row['bau']); ?></td>
-                                        </tr><?php endwhile; else: ?><tr><td colspan="9" class="text-center">Tidak ada data untuk periode yang dipilih.</td></tr><?php endif; ?>
+                                        <?php if ($result->num_rows > 0): $no = 1;
+                                            $current_wilayah = null;
+                                            while ($row = $result->fetch_assoc()): if ($row['wilayah'] != $current_wilayah): $current_wilayah = $row['wilayah']; ?><tr class="wilayah-header">
+                                                        <th colspan="9"> <?= strtoupper(htmlspecialchars($current_wilayah)); ?></th>
+                                                    </tr><?php endif; ?><tr>
+                                                    <td class="text-center"><?= $no++; ?></td>
+                                                    <td><?= htmlspecialchars($row['no_analisa']); ?></td>
+                                                    <td><?= htmlspecialchars($row['sampel']); ?></td>
+                                                    <td><?= date('d-m-Y', strtotime($row['tanggal_pengujian'])); ?></td>
+                                                    <td><?= htmlspecialchars($row['suhu']); ?></td>
+                                                    <td><?= htmlspecialchars($row['tds']); ?></td>
+                                                    <td><?= htmlspecialchars($row['kekeruhan']); ?></td>
+                                                    <td><?= htmlspecialchars($row['warna']); ?></td>
+                                                    <td><?= htmlspecialchars($row['bau']); ?></td>
+                                                </tr><?php endwhile;
+                                                else: ?><tr>
+                                                <td colspan="9" class="text-center">Tidak ada data untuk periode yang dipilih.</td>
+                                            </tr><?php endif; ?>
                                     </tbody>
                                 </table>
                             </div>
@@ -213,6 +237,11 @@ if ($jenis_laporan === 'fisika') {
                                 <div class="col-md-4"><label for="bulan" class="form-label">Pilih Bulan</label><select name="bulan" id="bulan" class="form-select"><?php for ($i = 1; $i <= 12; $i++): ?><option value="<?= $i; ?>" <?= ($i == $bulan) ? 'selected' : ''; ?>><?= htmlspecialchars($nama_bulan[$i]); ?></option><?php endfor; ?></select></div>
                                 <div class="col-md-4"><label for="tahun" class="form-label">Tahun</label><input type="number" name="tahun" id="tahun" class="form-control" value="<?= htmlspecialchars($tahun); ?>"></div>
                                 <div class="col-md-4 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-2"></i>Tampilkan</button></div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <a href="export_laporan.php?jenis=kimia&bulan=<?= $bulan ?>&tahun=<?= $tahun ?>" target="_blank" class="btn btn-danger w-100">
+                                        <i class="fas fa-file-pdf me-2"></i>Export PDF
+                                    </a>
+                                </div>
                             </form>
                             <hr>
                             <h4 class="text-center mt-4">Hasil Pemeriksaan Parameter Kimia Air</h4>
@@ -231,40 +260,46 @@ if ($jenis_laporan === 'fisika') {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php if ($result->num_rows > 0): $no = 1; $current_wilayah = null;
-                                        while ($row = $result->fetch_assoc()): if ($row['wilayah'] != $current_wilayah): $current_wilayah = $row['wilayah']; ?><tr class="wilayah-header"><th colspan="7"><?= strtoupper(htmlspecialchars($current_wilayah)); ?></th></tr><?php endif; ?>
-                                        <tr>
-                                            <td class="text-center align-middle"><?= $no++; ?></td>
-                                            <td style="white-space: normal;">
-                                                <strong>No. Analisa:</strong> <?= htmlspecialchars($row['no_analisa']); ?><br>
-                                                <strong>Lokasi:</strong> <?= htmlspecialchars($row['sampel']); ?>
-                                            </td>
-                                            <td class="align-middle">
-                                                <strong>Tgl:</strong> <?= date('d-m-Y', strtotime($row['tanggal_pengujian'])); ?>
-                                            </td>
-                                            <td class="align-middle">
-                                                <strong>pH:</strong> <?= htmlspecialchars($row['ph']); ?><br>
-                                                <strong>Besi (Fe):</strong> <?= htmlspecialchars($row['fe']); ?><br>
-                                                <strong>Mangan (Mn):</strong> <?= htmlspecialchars($row['mn']); ?>
-                                            </td>
-                                            <td class="align-middle">
-                                                <strong>Kromium (Cr⁶⁺):</strong> <?= htmlspecialchars($row['cr']); ?><br>
-                                                <strong>Kadmium (Cd):</strong> <?= htmlspecialchars($row['cd']); ?><br>
-                                                <strong>Arsen (As):</strong> <?= htmlspecialchars($row['arsen']); ?><br>
-                                                <strong>Timbal (Pb):</strong> <?= htmlspecialchars($row['pb']); ?>
-                                            </td>
-                                            <td class="align-middle">
-                                                <strong>Nitrit (NO₂⁻):</strong> <?= htmlspecialchars($row['nitrit']); ?><br>
-                                                <strong>Nitrat (NO₃⁻):</strong> <?= htmlspecialchars($row['nitrat']); ?><br>
-                                                <strong>Fluoride (F):</strong> <?= htmlspecialchars($row['fluoride']); ?>
-                                            </td>
-                                            <td class="align-middle">
-                                                <strong>Aluminium (Al):</strong> <?= htmlspecialchars($row['al']); ?><br>
-                                                <strong>Sisa Khlor:</strong> <?= htmlspecialchars($row['sisa_khlor']); ?>
-                                            </td>
-                                        </tr>
-                                        <?php endwhile; else: ?>
-                                        <tr><td colspan="7" class="text-center">Tidak ada data untuk periode yang dipilih.</td></tr>
+                                        <?php if ($result->num_rows > 0): $no = 1;
+                                            $current_wilayah = null;
+                                            while ($row = $result->fetch_assoc()): if ($row['wilayah'] != $current_wilayah): $current_wilayah = $row['wilayah']; ?><tr class="wilayah-header">
+                                                        <th colspan="7"><?= strtoupper(htmlspecialchars($current_wilayah)); ?></th>
+                                                    </tr><?php endif; ?>
+                                                <tr>
+                                                    <td class="text-center align-middle"><?= $no++; ?></td>
+                                                    <td style="white-space: normal;">
+                                                        <strong>No. Analisa:</strong> <?= htmlspecialchars($row['no_analisa']); ?><br>
+                                                        <strong>Lokasi:</strong> <?= htmlspecialchars($row['sampel']); ?>
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        <strong>Tgl:</strong> <?= date('d-m-Y', strtotime($row['tanggal_pengujian'])); ?>
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        <strong>pH:</strong> <?= htmlspecialchars($row['ph']); ?><br>
+                                                        <strong>Besi (Fe):</strong> <?= htmlspecialchars($row['fe']); ?><br>
+                                                        <strong>Mangan (Mn):</strong> <?= htmlspecialchars($row['mn']); ?>
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        <strong>Kromium (Cr⁶⁺):</strong> <?= htmlspecialchars($row['cr']); ?><br>
+                                                        <strong>Kadmium (Cd):</strong> <?= htmlspecialchars($row['cd']); ?><br>
+                                                        <strong>Arsen (As):</strong> <?= htmlspecialchars($row['arsen']); ?><br>
+                                                        <strong>Timbal (Pb):</strong> <?= htmlspecialchars($row['pb']); ?>
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        <strong>Nitrit (NO₂⁻):</strong> <?= htmlspecialchars($row['nitrit']); ?><br>
+                                                        <strong>Nitrat (NO₃⁻):</strong> <?= htmlspecialchars($row['nitrat']); ?><br>
+                                                        <strong>Fluoride (F):</strong> <?= htmlspecialchars($row['fluoride']); ?>
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        <strong>Aluminium (Al):</strong> <?= htmlspecialchars($row['al']); ?><br>
+                                                        <strong>Sisa Khlor:</strong> <?= htmlspecialchars($row['sisa_khlor']); ?>
+                                                    </td>
+                                                </tr>
+                                            <?php endwhile;
+                                        else: ?>
+                                            <tr>
+                                                <td colspan="7" class="text-center">Tidak ada data untuk periode yang dipilih.</td>
+                                            </tr>
                                         <?php endif; ?>
                                     </tbody>
                                 </table>
@@ -284,6 +319,11 @@ if ($jenis_laporan === 'fisika') {
                                 <div class="col-md-4"><label for="bulan" class="form-label">Pilih Bulan</label><select name="bulan" id="bulan" class="form-select"><?php for ($i = 1; $i <= 12; $i++): ?><option value="<?= $i; ?>" <?= ($i == $bulan) ? 'selected' : ''; ?>><?= htmlspecialchars($nama_bulan[$i]); ?></option><?php endfor; ?></select></div>
                                 <div class="col-md-4"><label for="tahun" class="form-label">Tahun</label><input type="number" name="tahun" id="tahun" class="form-control" value="<?= htmlspecialchars($tahun); ?>"></div>
                                 <div class="col-md-4 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-2"></i>Tampilkan</button></div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <a href="export_laporan.php?jenis=mikrobiologi&bulan=<?= $bulan ?>&tahun=<?= $tahun ?>" target="_blank" class="btn btn-danger w-100">
+                                        <i class="fas fa-file-pdf me-2"></i>Export PDF
+                                    </a>
+                                </div>
                             </form>
                             <hr>
                             <h4 class="text-center mt-4">Hasil Pemeriksaan Parameter Mikrobiologi</h4>
@@ -304,25 +344,32 @@ if ($jenis_laporan === 'fisika') {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php if ($result->num_rows > 0): $no = 1; $current_wilayah = null;
-                                        while ($row = $result->fetch_assoc()): if ($row['wilayah'] != $current_wilayah): $current_wilayah = $row['wilayah']; ?><tr class="wilayah-header"><th colspan="9"> <?= strtoupper(htmlspecialchars($current_wilayah)); ?></th></tr><?php endif; ?><tr>
-                                            <td class="text-center"><?= $no++; ?></td>
-                                            <td><?= htmlspecialchars($row['no_analisa']); ?></td>
-                                            <td><?= htmlspecialchars($row['sampel']); ?></td>
-                                            <td><?= date('d-m-Y', strtotime($row['tanggal_pengujian'])); ?></td>
-                                            <td><?= htmlspecialchars($row['tes_coliform']); ?></td>
-                                            <td><?= htmlspecialchars($row['tes_coliform_penegasan']); ?></td>
-                                            <td><?= htmlspecialchars($row['tes_ecoli']); ?></td>
-                                            <td><?= htmlspecialchars($row['ph']); ?></td>
-                                            <td><?= htmlspecialchars($row['sisa_khlor']); ?></td>
-                                        </tr><?php endwhile; else: ?><tr><td colspan="9" class="text-center">Tidak ada data untuk periode yang dipilih.</td></tr><?php endif; ?>
+                                        <?php if ($result->num_rows > 0): $no = 1;
+                                            $current_wilayah = null;
+                                            while ($row = $result->fetch_assoc()): if ($row['wilayah'] != $current_wilayah): $current_wilayah = $row['wilayah']; ?><tr class="wilayah-header">
+                                                        <th colspan="9"> <?= strtoupper(htmlspecialchars($current_wilayah)); ?></th>
+                                                    </tr><?php endif; ?><tr>
+                                                    <td class="text-center"><?= $no++; ?></td>
+                                                    <td><?= htmlspecialchars($row['no_analisa']); ?></td>
+                                                    <td><?= htmlspecialchars($row['sampel']); ?></td>
+                                                    <td><?= date('d-m-Y', strtotime($row['tanggal_pengujian'])); ?></td>
+                                                    <td><?= htmlspecialchars($row['tes_coliform']); ?></td>
+                                                    <td><?= htmlspecialchars($row['tes_coliform_penegasan']); ?></td>
+                                                    <td><?= htmlspecialchars($row['tes_ecoli']); ?></td>
+                                                    <td><?= htmlspecialchars($row['ph']); ?></td>
+                                                    <td><?= htmlspecialchars($row['sisa_khlor']); ?></td>
+                                                </tr><?php endwhile;
+                                                else: ?><tr>
+                                                <td colspan="9" class="text-center">Tidak ada data untuk periode yang dipilih.</td>
+                                            </tr><?php endif; ?>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
                 <?php endif; ?>
-                <?php if (isset($stmt)) $stmt->close(); $con->close(); ?>
+                <?php if (isset($stmt)) $stmt->close();
+                $con->close(); ?>
             </div>
         </div>
     </div>
@@ -338,4 +385,5 @@ if ($jenis_laporan === 'fisika') {
         });
     </script>
 </body>
+
 </html>
