@@ -5,6 +5,10 @@ include '../database/database.php'; // Sesuaikan path jika perlu
 include '../config.php'; //
 session_start(); // Jika perlu validasi login
 
+if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+    die("Token CSRF tidak valid! Akses ditolak.");
+}
+
 // Pastikan request adalah POST dan ID Master ada
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['id_m_hasil_uji'])) {
 

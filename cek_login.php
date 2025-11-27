@@ -52,6 +52,12 @@
 			// Regenerasi ID session biar aman
 			session_regenerate_id(true);
 
+			// === SECURITY: GENERATE CSRF TOKEN ===
+			if (empty($_SESSION['csrf_token'])) {
+				$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+			}
+			// =====================================
+
 			$_SESSION['username'] = $username;
 			$_SESSION['status'] = "login";
 			$_SESSION['user_id'] = $row['id_user'];

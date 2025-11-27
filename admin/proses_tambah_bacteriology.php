@@ -4,6 +4,10 @@ include '../database/database.php';
 include '../config.php';
 session_start();
 
+if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+    die("Token CSRF tidak valid! Akses ditolak.");
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Ambil data master
     $nama_pelanggan = $_POST['nama_pelanggan'];

@@ -211,6 +211,7 @@ if (!$sql_master_data) {
     <div class="modal fade" id="modalTambah" tabindex="-1" aria-labelledby="modalTambahLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <form action="<?= BASE_URL ?>admin/proses_tambah_bacteriology.php" method="POST" id="formTambah">
+                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="modalTambahLabel">Tambah Data Hasil Uji Mikrobiologi</h5>
@@ -328,6 +329,7 @@ if (!$sql_master_data) {
     <div class="modal fade" id="modalHapus" tabindex="-1" aria-labelledby="modalHapusLabel" aria-hidden="true">
         <div class="modal-dialog">
             <form action="<?= BASE_URL ?>admin/proses_hapus_bacteriology.php" method="POST">
+                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                 <div class="modal-content">
                     <div class="modal-header bg-danger text-white">
                         <h5 class="modal-title" id="modalHapusLabel">Konfirmasi Hapus Data</h5>
@@ -687,6 +689,7 @@ if (!$sql_master_data) {
                             const details = response.detail_data;
                             let formHtml = `<form action="<?= BASE_URL ?>admin/proses_edit_bacteriology.php" method="POST" id="formEditBacteriology">
                                 <input type="hidden" name="id_m_hasil_uji" value="${master.id_m_hasil_uji}">
+                                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                                 <h5 class="mb-3 text-warning border-bottom pb-2">Edit Info Umum</h5>
                                 <div class="row mb-3 g-3">
                                     <div class="col-md-6"><label class="form-label">No. Analisa</label><input type="text" class="form-control" name="no_analisa" value="${master.no_analisa || ''}" required></div>

@@ -9,6 +9,13 @@ if (!isset($_SESSION['status']) || $_SESSION['status'] != "login") {
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+
+    // === CEK CSRF TOKEN ===
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        die("Token CSRF tidak valid! Akses ditolak.");
+    }
+    // ======================
+
     $id = $_POST['id_parameter'];
     $nama = $_POST['nama_parameter'];
     $satuan = $_POST['satuan'];
@@ -19,7 +26,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $sql = "UPDATE parameter_uji_bacteriology SET nama_parameter=?, satuan=?, nilai_baku_mutu=?, metode_uji=? WHERE id_parameter=?";
         $stmt = mysqli_prepare($con, $sql);
         mysqli_stmt_bind_param($stmt, "ssssi", $nama, $satuan, $baku, $metode, $id);
-        
+
         if (mysqli_stmt_execute($stmt)) {
             header("location: pengaturan.php?pesan=sukses_edit");
         } else {
@@ -29,4 +36,3 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 }
 mysqli_close($con);
-?>

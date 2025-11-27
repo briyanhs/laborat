@@ -8,6 +8,13 @@ if (!isset($_SESSION['status']) || $_SESSION['status'] != "login" || $_SESSION['
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+
+    // === SECURITY: CEK CSRF TOKEN ===
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        die("<b>ERROR:</b> Token Keamanan Tidak Valid! <br> Permintaan Anda ditolak demi keamanan. Silakan refresh halaman dan coba lagi.");
+    }
+    // ================================
+    
     $id_m_hasil_uji = $_POST['id_m_hasil_uji'];
     $tipe = $_POST['tipe'];
     $user_id = $_SESSION['user_id']; // Menggunakan id_user sesuai database Anda
@@ -35,10 +42,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Jika user sudah pernah verifikasi ini, query akan gagal (karena UNIQUE KEY)
     $query_log = "INSERT INTO log_verifikasi (id_hasil_uji, tipe_uji, id_user_verifier) 
                   VALUES (?, ?, ?)";
-    
+
     $stmt_log = mysqli_prepare($con, $query_log);
     mysqli_stmt_bind_param($stmt_log, "isi", $id_m_hasil_uji, $tipe, $user_id);
-    
+
     if (mysqli_stmt_execute($stmt_log)) {
         // Berhasil mencatat verifikasi
         header("location: halaman_user.php?pesan=verif_sukses");
@@ -46,7 +53,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // Gagal (kemungkinan karena duplikat / sudah pernah verifikasi)
         header("location: halaman_user.php?pesan=verif_gagal");
     }
-    
+
     mysqli_close($con);
 }
-?>

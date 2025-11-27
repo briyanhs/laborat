@@ -293,6 +293,7 @@ if (isset($_GET['pesan'])) {
                         </p>
                         <input type="hidden" name="id_m_hasil_uji" id="verif_id">
                         <input type="hidden" name="tipe" id="verif_tipe">
+                        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>

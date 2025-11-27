@@ -229,6 +229,7 @@ if (!$sql_master_data) {
     <div class="modal fade" id="modalTambah" tabindex="-1" aria-labelledby="modalTambahLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <form action="<?= BASE_URL ?>admin/proses_tambah.php" method="POST" id="formTambah">
+                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="modalTambahLabel">Tambah Data Hasil Uji</h5>
@@ -349,6 +350,7 @@ if (!$sql_master_data) {
     <div class="modal fade" id="modalEdit" tabindex="-1" aria-labelledby="modalEditLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <form action="<?= BASE_URL ?>admin/proses_edit_all.php" method="POST" id="formEditAll">
+                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="modalEditLabel">Edit Data Hasil Uji Lengkap (<span id="editModalNoAnalisaTitle"></span>)</h5>
@@ -433,6 +435,7 @@ if (!$sql_master_data) {
     <div class="modal fade" id="modalHapus" tabindex="-1" aria-labelledby="modalHapusLabel" aria-hidden="true">
         <div class="modal-dialog">
             <form action="<?= BASE_URL ?>admin/proses_hapus_master.php" method="POST">
+                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="modalHapusLabel">Konfirmasi Hapus Data</h5>

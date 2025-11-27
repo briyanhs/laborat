@@ -169,6 +169,7 @@ if (isset($_GET['pesan'])) {
                     <div class="modal-header bg-warning text-white"><h5 class="modal-title">Edit Parameter Fisika/Kimia</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                     <div class="modal-body">
                         <input type="hidden" name="id_parameter" id="edit_id_fisika">
+                        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                         
                         <div class="mb-2">
                             <label>Nama Parameter</label>
@@ -209,6 +210,7 @@ if (isset($_GET['pesan'])) {
                     <div class="modal-header bg-warning text-white"><h5 class="modal-title">Edit Parameter Mikrobiologi</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                     <div class="modal-body">
                         <input type="hidden" name="id_parameter" id="edit_id_bakteri">
+                        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                         
                         <div class="mb-2">
                             <label>Nama Parameter</label>

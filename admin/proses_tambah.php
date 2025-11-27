@@ -5,9 +5,10 @@ include '../database/database.php';
 include '../config.php';
 session_start();
 
-// ====================================================================
-// FUNGSI CEK KEPATUHAN (VERSI PALING ROBUST/TANGGUH)
-// ====================================================================
+if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+    die("Token CSRF tidak valid! Akses ditolak.");
+}
+
 function cekKepatuhan($hasil, $standar)
 {
     if ($hasil === null || $standar === null || trim((string)$hasil) === '' || trim((string)$standar) === '') {
