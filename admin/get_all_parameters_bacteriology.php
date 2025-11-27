@@ -5,6 +5,11 @@
 include '../database/database.php';
 include '../config.php';
 
+session_start();
+if (!isset($_SESSION['status']) || $_SESSION['status'] != "login") {
+    exit("Akses ditolak.");
+}
+
 header('Content-Type: application/json');
 
 // Pastikan koneksi berhasil
