@@ -2,7 +2,15 @@
 <?php
 include '../database/database.php';
 include '../config.php';
-session_start(); // Pastikan session_start() ada di awal, sebelum output apapun
+
+// --- SECURITY FIX: Pengaturan Cookie Session yang Lebih Aman ---
+// Mencegah akses cookie via Javascript (HttpOnly) dan memastikan Session ID ketat
+session_set_cookie_params([
+    'httponly' => true,
+    'samesite' => 'Strict'
+]);
+
+session_start();
 
 if (!isset($_SESSION['status']) || $_SESSION['status'] != "login") {
     header("location:../index.php?pesan=belum_login");
@@ -37,9 +45,6 @@ if (isset($_GET['pesan'])) {
     }
 }
 
-// Ambil data master hasil uji untuk tabel
-// HAPUS query lama Anda, dan GANTI DENGAN INI:
-
 $query_master_data = "
     SELECT
         m.id_m_hasil_uji,
@@ -53,17 +58,12 @@ $query_master_data = "
         m.keterangan_sampel,
         m.no_analisa,
         m.wilayah,
-        
-        -- Ini adalah logika status UJI (Selesai/Proses)
         CASE
             WHEN SUM(CASE WHEN h.status = 'Proses' THEN 1 ELSE 0 END) > 0 THEN 'Proses'
             WHEN COUNT(h.id) > 0 THEN 'Selesai'
             ELSE 'Belum Ada Detail'
         END AS status_display,
-
-        -- Ini adalah logika status VERIFIKASI (Hitung dari log)
         COUNT(DISTINCT lv.id_user_verifier) as total_verifikasi
-        
     FROM
         master_hasil_uji_bacteriology m
     LEFT JOIN
@@ -78,10 +78,13 @@ $query_master_data = "
 
 $sql_master_data = mysqli_query($con, $query_master_data);
 
+// --- SECURITY FIX: Menyembunyikan Error Database ---
 if (!$sql_master_data) {
-    die("Query database gagal: " . mysqli_error($con));
+    // Log error di server (tidak terlihat user)
+    error_log("Database Error: " . mysqli_error($con));
+    // Tampilkan pesan umum ke user
+    die("Terjadi kesalahan sistem. Silakan hubungi administrator.");
 }
-
 ?>
 <html lang="en">
 
@@ -94,7 +97,6 @@ if (!$sql_master_data) {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
     <link href="style.css" rel="stylesheet">
-
 </head>
 
 <body>
@@ -140,7 +142,6 @@ if (!$sql_master_data) {
                                 <th>No Analisa</th>
                                 <th>Jenis Sample</th>
                                 <th>Pelanggan</th>
-                                <!--<th>penerima</th>-->
                                 <th>Status Uji</th>
                                 <th>Status Verifikasi</th>
                                 <th>Alamat</th>
@@ -445,7 +446,6 @@ if (!$sql_master_data) {
                 }
             })
 
-            // Toggle sidebar
             $("#menu-toggle").click(function(e) {
                 e.preventDefault();
                 $("#wrapper").toggleClass("toggled");
@@ -455,7 +455,6 @@ if (!$sql_master_data) {
             let existingParameterIds = new Set();
             let parameterTableInitialized = false;
 
-            // Fungsi untuk menginisialisasi tabel parameter di modal tambah
             function initializeParameterTable() {
                 if (!parameterTableInitialized) {
                     $('#parameterContainer').html(`
@@ -480,7 +479,6 @@ if (!$sql_master_data) {
                 }
             }
 
-            // Fungsi untuk menambahkan baris parameter baru
             function addParameterRow(param) {
                 if (existingParameterIds.has(String(param.id_parameter))) {
                     alert('Parameter "' + param.nama_parameter + '" sudah ada di daftar.');
@@ -520,7 +518,6 @@ if (!$sql_master_data) {
                 });
             }
 
-            // Event listener untuk hapus baris parameter
             $('#parameterContainer').on('click', '.btn-remove-param', function() {
                 const $row = $(this).closest('tr');
                 const paramId = String($row.data('param-id'));
@@ -533,7 +530,6 @@ if (!$sql_master_data) {
                 }
             });
 
-            // AJAX untuk memuat parameter berdasarkan paket
             $('#paketSelect').change(function() {
                 const id_paket = $(this).val();
                 existingParameterIds.clear();
@@ -542,7 +538,7 @@ if (!$sql_master_data) {
 
                 if (id_paket) {
                     $.ajax({
-                        url: '<?= BASE_URL ?>admin/get_parameters_bacteriology.php', // FILE BARU
+                        url: '<?= BASE_URL ?>admin/get_parameters_bacteriology.php',
                         type: 'POST',
                         dataType: 'json',
                         data: {
@@ -553,37 +549,21 @@ if (!$sql_master_data) {
                         },
                         success: function(response) {
                             if (response.success && response.parameters.length > 0) {
-
-                                // Langkah 1: Buat tabel dengan data asli terlebih dahulu
                                 initializeParameterTable();
                                 $('#tambahParameterTable tbody').empty();
                                 response.parameters.forEach(param => addParameterRow(param));
 
-                                // --- AWAL KODE PERBAIKAN ---
-                                // Langkah 2: Setelah tabel dibuat, cari dan modifikasi baris yang spesifik
                                 const selectedPackageName = $('#paketSelect option:selected').text();
-
                                 if (selectedPackageName === 'Mikrobiologi Air Bersih') {
-                                    // Cari setiap baris di dalam tabel yang baru dibuat
                                     $('#tambahParameterTable tbody tr').each(function() {
                                         const $row = $(this);
-                                        // Dapatkan nama parameter dari kolom kedua (td:nth-child(2))
                                         const parameterName = $row.find('td:nth-child(2)').text();
-
-                                        // Jika nama parameter adalah "Sisa Chlor"
                                         if (parameterName.includes('Sisa Chlor')) {
-
-                                            // 1. Perbarui sel tabel yang terlihat (kolom ke-4)
                                             $row.find('td:nth-child(4)').text('0');
-
-                                            // 2. Perbarui nilai input tersembunyi yang akan dikirim ke server
-                                            // Ini adalah langkah kunci yang memperbaiki bug
                                             $row.find('input[name*="[nilai_baku_mutu]"]').val('0');
                                         }
                                     });
                                 }
-                                // --- AKHIR KODE PERBAIKAN ---
-
                             } else {
                                 $('#parameterContainer').html('<p class="text-muted">Tidak ada parameter untuk paket ini.</p>');
                                 parameterTableInitialized = false;
@@ -598,22 +578,19 @@ if (!$sql_master_data) {
                 }
             });
 
-            // Reset form saat modal tambah ditutup
             $('#modalTambah').on('hidden.bs.modal', function() {
                 $('#formTambah')[0].reset();
                 $('#paketSelect').val('').trigger('change');
             });
 
-            // 1. Inisialisasi Select2 di dalam modal custom
             $('#selectParameterToAdd').select2({
-                dropdownParent: $('#modalAddCustomParameter'), // Penting agar dropdown muncul di atas modal
+                dropdownParent: $('#modalAddCustomParameter'),
                 placeholder: 'Cari nama parameter...',
                 ajax: {
                     url: '<?= BASE_URL ?>admin/get_all_parameters_bacteriology.php',
                     dataType: 'json',
-                    delay: 250, // Waktu tunggu sebelum request
+                    delay: 250,
                     processResults: function(data) {
-                        // Filter hasil untuk tidak menampilkan parameter yang sudah ada di form
                         let filteredResults = data.results.filter(param => !existingParameterIds.has(param.id));
                         return {
                             results: filteredResults
@@ -623,22 +600,16 @@ if (!$sql_master_data) {
                 }
             });
 
-            // 2. Event handler untuk tombol #addParameterBtn
             $('#addParameterBtn').on('click', function() {
-                // Reset pilihan sebelumnya
                 $('#selectParameterToAdd').val(null).trigger('change');
-                // Tampilkan modal
                 var customModal = new bootstrap.Modal(document.getElementById('modalAddCustomParameter'));
                 customModal.show();
             });
 
-            // 3. Event handler untuk tombol "Tambah ke Form" di dalam modal custom
             $('#addSelectedParameterBtn').on('click', function() {
                 var selectedData = $('#selectParameterToAdd').select2('data')[0];
                 if (selectedData) {
-                    // 'selectedData' berisi semua info dari backend
                     addParameterRow(selectedData);
-                    // Tutup modal setelah menambah
                     var customModal = bootstrap.Modal.getInstance(document.getElementById('modalAddCustomParameter'));
                     customModal.hide();
                 } else {
@@ -646,7 +617,6 @@ if (!$sql_master_data) {
                 }
             });
 
-            // Tombol Detail
             tabelBody.on('click', '.btn-detail', function() {
                 const id_m_hasil_uji = $(this).data('id_m_hasil_uji');
                 const no_analisa = $(this).data('no_analisa');
@@ -670,7 +640,8 @@ if (!$sql_master_data) {
                 });
             });
 
-            // Tombol Edit (memuat konten ke dalam modal)
+            // --- SECURITY FIX: Anti-XSS pada Modal Edit ---
+            // Menggunakan struktur HTML tanpa value, lalu mengisi nilai menggunakan .val()
             tabelBody.on('click', '.btn-edit', function() {
                 const id_m_hasil_uji = $(this).data('id_m_hasil_uji');
                 const $modalBody = $('#edit-modal-body');
@@ -687,63 +658,96 @@ if (!$sql_master_data) {
                         if (response.success && response.master_data) {
                             const master = response.master_data;
                             const details = response.detail_data;
+
+                            // 1. Buat Struktur HTML KOSONG (tanpa value="") agar aman dari injection
                             let formHtml = `<form action="<?= BASE_URL ?>admin/proses_edit_bacteriology.php" method="POST" id="formEditBacteriology">
-                                <input type="hidden" name="id_m_hasil_uji" value="${master.id_m_hasil_uji}">
+                                <input type="hidden" name="id_m_hasil_uji" id="edit_id_m_hasil_uji">
                                 <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                                 <h5 class="mb-3 text-warning border-bottom pb-2">Edit Info Umum</h5>
                                 <div class="row mb-3 g-3">
-                                    <div class="col-md-6"><label class="form-label">No. Analisa</label><input type="text" class="form-control" name="no_analisa" value="${master.no_analisa || ''}" required></div>
-                                    <div class="col-md-6"><label class="form-label">Nama Pelanggan</label><input type="text" class="form-control" name="nama_pelanggan" value="${master.nama_pelanggan || ''}" required></div>
-                                    <div class="col-md-6"><label class="form-label">Alamat</label><input type="text" class="form-control" name="alamat" value="${master.alamat || ''}" required></div>
-                                    <div class="col-md-6"><label class="form-label">Status Pelanggan</label><select class="form-select" name="status_pelanggan" required><option value="Pelanggan" ${master.status_pelanggan === 'Pelanggan' ? 'selected' : ''}>Pelanggan</option><option value="Non Pelanggan" ${master.status_pelanggan === 'Non Pelanggan' ? 'selected' : ''}>Non Pelanggan</option></select></div>
-                                    <div class="col-md-6"><label class="form-label">Wilayah</label><select class="form-select" name="wilayah" required><option value="Wilayah Utara" ${master.wilayah === 'Wilayah Utara' ? 'selected' : ''}>Utara</option><option value="Wilayah Tengah" ${master.wilayah === 'Wilayah Tengah' ? 'selected' : ''}>Tengah</option><option value="Wilayah Selatan" ${master.wilayah === 'Wilayah Selatan' ? 'selected' : ''}>Selatan</option></select></div>
-                                    <div class="col-md-6"><label class="form-label">Jenis Sampel</label><input type="text" class="form-control" name="jenis_sampel" value="${master.jenis_sampel || ''}" required></div>
-                                    <div class="col-md-6"><label class="form-label">Jenis Pengujian</label><input type="text" class="form-control" name="jenis_pengujian" value="${master.jenis_pengujian || ''}" required></div>
-                                    <div class="col-md-6"><label class="form-label">Ket. Sampel</label><input type="text" class="form-control" name="keterangan_sampel" value="${master.keterangan_sampel || ''}"></div>
-                                    <div class="col-md-6"><label class="form-label">Nama Pengirim</label><input type="text" class="form-control" name="nama_pengirim" value="${master.nama_pengirim || ''}" required></div>
-                                    <div class="col-md-6">
-                                        <label for="edit_tanggal_pengambilan" class="form-label">Tgl Pengambilan</label>
-                                        <input type="date" class="form-control" id="edit_tanggal_pengambilan" name="tanggal_pengambilan" value="${master.tanggal_pengambilan || ''}" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="edit_tanggal_pengiriman" class="form-label">Tgl Pengiriman</label>
-                                        <input type="date" class="form-control" id="edit_tanggal_pengiriman" name="tanggal_pengiriman" value="${master.tanggal_pengiriman || ''}" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="edit_tanggal_penerimaan" class="form-label">Tgl Penerimaan</label>
-                                        <input type="date" class="form-control" id="edit_tanggal_penerimaan" name="tanggal_penerimaan" value="${master.tanggal_penerimaan || ''}" required>
-                                    </div>
-                                     <div class="col-md-6">
-                                        <label for="edit_tanggal_pengujian" class="form-label">Tgl Pengujian</label>
-                                        <input type="date" class="form-control" id="edit_tanggal_pengujian" name="tanggal_pengujian" value="${master.tanggal_pengujian || ''}" required>
-                                    </div>
-                                    </div>
-                                <h5 class="mb-3 mt-4 text-warning border-bottom pb-2">Edit Detail Parameter</h5>`;
+                                    <div class="col-md-6"><label class="form-label">No. Analisa</label><input type="text" class="form-control" name="no_analisa" id="edit_no_analisa" required></div>
+                                    <div class="col-md-6"><label class="form-label">Nama Pelanggan</label><input type="text" class="form-control" name="nama_pelanggan" id="edit_nama_pelanggan" required></div>
+                                    <div class="col-md-6"><label class="form-label">Alamat</label><input type="text" class="form-control" name="alamat" id="edit_alamat" required></div>
+                                    <div class="col-md-6"><label class="form-label">Status Pelanggan</label><select class="form-select" name="status_pelanggan" id="edit_status_pelanggan" required><option value="Pelanggan">Pelanggan</option><option value="Non Pelanggan">Non Pelanggan</option></select></div>
+                                    <div class="col-md-6"><label class="form-label">Wilayah</label><select class="form-select" name="wilayah" id="edit_wilayah" required><option value="Wilayah Utara">Utara</option><option value="Wilayah Tengah">Tengah</option><option value="Wilayah Selatan">Selatan</option></select></div>
+                                    <div class="col-md-6"><label class="form-label">Jenis Sampel</label><input type="text" class="form-control" name="jenis_sampel" id="edit_jenis_sampel" required></div>
+                                    <div class="col-md-6"><label class="form-label">Jenis Pengujian</label><input type="text" class="form-control" name="jenis_pengujian" id="edit_jenis_pengujian" required></div>
+                                    <div class="col-md-6"><label class="form-label">Ket. Sampel</label><input type="text" class="form-control" name="keterangan_sampel" id="edit_keterangan_sampel"></div>
+                                    <div class="col-md-6"><label class="form-label">Nama Pengirim</label><input type="text" class="form-control" name="nama_pengirim" id="edit_nama_pengirim" required></div>
+                                    <div class="col-md-6"><label class="form-label">Tgl Pengambilan</label><input type="date" class="form-control" name="tanggal_pengambilan" id="edit_tanggal_pengambilan" required></div>
+                                    <div class="col-md-6"><label class="form-label">Tgl Pengiriman</label><input type="date" class="form-control" name="tanggal_pengiriman" id="edit_tanggal_pengiriman" required></div>
+                                    <div class="col-md-6"><label class="form-label">Tgl Penerimaan</label><input type="date" class="form-control" name="tanggal_penerimaan" id="edit_tanggal_penerimaan" required></div>
+                                    <div class="col-md-6"><label class="form-label">Tgl Pengujian</label><input type="date" class="form-control" name="tanggal_pengujian" id="edit_tanggal_pengujian" required></div>
+                                </div>
+                                <h5 class="mb-3 mt-4 text-warning border-bottom pb-2">Edit Detail Parameter</h5>
+                                <div class="mb-3">
+                                    <label class="form-label">Status Global</label><select class="form-select" name="global_status" id="edit_global_status"><option value="Proses">Proses</option><option value="Selesai">Selesai</option></select>
+                                    <small class="text-muted">Akan mengubah status semua parameter.</small>
+                                </div>
+                                <div class="table-responsive" id="edit_details_container"></div>
+                                <div class="modal-footer mt-3"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary">Simpan Perubahan</button></div></form>`;
 
+                            $modalBody.html(formHtml);
+
+                            // 2. ISI NILAI MENGGUNAKAN JQUERY .val() (AMAN DARI XSS)
+                            $('#edit_id_m_hasil_uji').val(master.id_m_hasil_uji);
+                            $('#edit_no_analisa').val(master.no_analisa);
+                            $('#edit_nama_pelanggan').val(master.nama_pelanggan);
+                            $('#edit_alamat').val(master.alamat);
+                            $('#edit_status_pelanggan').val(master.status_pelanggan);
+                            $('#edit_wilayah').val(master.wilayah);
+                            $('#edit_jenis_sampel').val(master.jenis_sampel);
+                            $('#edit_jenis_pengujian').val(master.jenis_pengujian);
+                            $('#edit_keterangan_sampel').val(master.keterangan_sampel);
+                            $('#edit_nama_pengirim').val(master.nama_pengirim);
+                            $('#edit_tanggal_pengambilan').val(master.tanggal_pengambilan);
+                            $('#edit_tanggal_pengiriman').val(master.tanggal_pengiriman);
+                            $('#edit_tanggal_penerimaan').val(master.tanggal_penerimaan);
+                            $('#edit_tanggal_pengujian').val(master.tanggal_pengujian);
+
+                            // Set Status Global
                             let globalStatus = 'Selesai';
                             if (details.some(d => d.status === 'Proses')) {
                                 globalStatus = 'Proses';
                             }
-                            formHtml += `<div class="mb-3">
-                                <label class="form-label">Status Global</label><select class="form-select" name="global_status"><option value="Proses" ${globalStatus === 'Proses' ? 'selected' : ''}>Proses</option><option value="Selesai" ${globalStatus === 'Selesai' ? 'selected' : ''}>Selesai</option></select>
-                                <small class="text-muted">Akan mengubah status semua parameter.</small></div>`;
+                            $('#edit_global_status').val(globalStatus);
 
+                            // 3. Bangun Tabel Detail Menggunakan DOM Element (Aman)
                             if (details.length > 0) {
-                                formHtml += `<div class="table-responsive"><table class="table table-bordered table-sm">
-                                    <thead class="table-light"><tr><th>Parameter</th><th>Hasil</th><th>Penegasan</th><th>Keterangan</th></tr></thead><tbody>`;
+                                let $table = $('<table class="table table-bordered table-sm"><thead class="table-light"><tr><th>Parameter</th><th>Hasil</th><th>Penegasan</th><th>Keterangan</th></tr></thead><tbody id="edit_details_tbody"></tbody></table>');
+                                let $tbody = $table.find('tbody');
+
                                 details.forEach(d => {
-                                    formHtml += `<tr><td>${d.nama_parameter || ''}<input type="hidden" name="detail_ids[]" value="${d.id}"></td>
-                                        <td><input type="text" class="form-control form-control-sm" name="hasil[${d.id}]" value="${d.hasil || ''}"></td>
-                                        <td><input type="text" class="form-control form-control-sm" name="penegasan[${d.id}]" value="${d.penegasan || ''}"></td>
-                                        <td><input type="text" class="form-control form-control-sm" name="keterangan[${d.id}]" value="${d.keterangan || ''}"></td></tr>`;
+                                    let $tr = $('<tr>');
+
+                                    // Kolom Parameter & ID
+                                    let $tdParam = $('<td>').text(d.nama_parameter || '');
+                                    $tdParam.append($('<input>').attr({
+                                        type: 'hidden',
+                                        name: 'detail_ids[]'
+                                    }).val(d.id));
+                                    $tr.append($tdParam);
+
+                                    // Kolom Input Hasil
+                                    let $inputHasil = $('<input>').addClass('form-control form-control-sm').attr('name', `hasil[${d.id}]`).val(d.hasil || '');
+                                    $tr.append($('<td>').append($inputHasil));
+
+                                    // Kolom Input Penegasan
+                                    let $inputPenegasan = $('<input>').addClass('form-control form-control-sm').attr('name', `penegasan[${d.id}]`).val(d.penegasan || '');
+                                    $tr.append($('<td>').append($inputPenegasan));
+
+                                    // Kolom Input Keterangan
+                                    let $inputKet = $('<input>').addClass('form-control form-control-sm').attr('name', `keterangan[${d.id}]`).val(d.keterangan || '');
+                                    $tr.append($('<td>').append($inputKet));
+
+                                    $tbody.append($tr);
                                 });
-                                formHtml += `</tbody></table></div>`;
+
+                                $('#edit_details_container').append($table);
                             } else {
-                                formHtml += '<p class="text-muted">Tidak ada detail parameter.</p>';
+                                $('#edit_details_container').html('<p class="text-muted">Tidak ada detail parameter.</p>');
                             }
 
-                            formHtml += `<div class="modal-footer mt-3"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary">Simpan Perubahan</button></div></form>`;
-                            $modalBody.html(formHtml);
                             $('#modalEditLabel').text(`Edit Data: ${master.no_analisa || 'N/A'}`);
                         } else {
                             $modalBody.html(`<div class="alert alert-danger">Gagal memuat: ${response.message || 'Error.'}</div>`);
@@ -756,7 +760,6 @@ if (!$sql_master_data) {
                 });
             });
 
-            // Tombol Hapus
             tabelBody.on('click', '.btn-hapus', function() {
                 const id_m_hasil_uji = $(this).data('id_m_hasil_uji');
                 const no_analisa = $(this).data('no_analisa');
@@ -767,12 +770,10 @@ if (!$sql_master_data) {
     </script>
 
     <?php
-    // Tutup koneksi database di akhir file setelah semua operasi selesai
     if (isset($con) && is_object($con) && method_exists($con, 'close')) {
         mysqli_close($con);
     }
     ?>
-
 </body>
 
 </html>

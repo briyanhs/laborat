@@ -2,27 +2,34 @@
 <?php
 include '../database/database.php';
 include '../config.php';
+
+// --- SECURITY: Session Config ---
+session_set_cookie_params([
+    'httponly' => true,
+    'samesite' => 'Strict'
+]);
 session_start();
 
+// Cek Login & Level User
 if (!isset($_SESSION['status']) || $_SESSION['status'] != "login" || $_SESSION['level'] != "User") {
     header("location:../index.php?pesan=belum_login");
     exit();
 }
 
-$user_nama = $_SESSION['nama_lengkap']; // Sesuai dengan cek_login.php
-$user_id = $_SESSION['user_id'];        // Sesuai dengan cek_login.php
+$user_nama = $_SESSION['nama_lengkap'];
+$user_id   = $_SESSION['user_id'];
 
-// Tentukan halaman mana yang aktif (Default: pending)
-$view = isset($_GET['view']) ? $_GET['view'] : 'pending';
+// Tentukan halaman aktif (Default: pending)
+$view = isset($_GET['view']) && in_array($_GET['view'], ['pending', 'selesai']) ? $_GET['view'] : 'pending';
 
 // ==================================================================================
-// BAGIAN 1: LOGIKA QUERY BERDASARKAN MENU YANG DIPILIH
+// BAGIAN 1: LOGIKA QUERY (Prepared Statement)
 // ==================================================================================
 
 if ($view == 'pending') {
     // --- QUERY DAFTAR TUNGGU (Verifikasi < 3) ---
 
-    // Fisika Pending
+    // 1. Fisika Pending
     $query_fisika = "
         SELECT 
             m.id_m_hasil_uji, m.no_analisa, m.nama_pelanggan, m.jenis_sampel, m.tanggal_pengujian,
@@ -33,12 +40,13 @@ if ($view == 'pending') {
         GROUP BY m.id_m_hasil_uji
         HAVING total_verifikasi < 3
         ORDER BY m.id_m_hasil_uji DESC";
+
     $stmt_f = mysqli_prepare($con, $query_fisika);
     mysqli_stmt_bind_param($stmt_f, "i", $user_id);
     mysqli_stmt_execute($stmt_f);
     $sql_fisika = mysqli_stmt_get_result($stmt_f);
 
-    // Bakteriologi Pending
+    // 2. Bakteriologi Pending
     $query_bakteri = "
         SELECT 
             m.id_m_hasil_uji, m.no_analisa, m.nama_pelanggan, m.jenis_sampel, m.tanggal_pengujian,
@@ -49,14 +57,16 @@ if ($view == 'pending') {
         GROUP BY m.id_m_hasil_uji
         HAVING total_verifikasi < 3
         ORDER BY m.id_m_hasil_uji DESC";
+
     $stmt_b = mysqli_prepare($con, $query_bakteri);
     mysqli_stmt_bind_param($stmt_b, "i", $user_id);
     mysqli_stmt_execute($stmt_b);
     $sql_bakteri = mysqli_stmt_get_result($stmt_b);
 } else {
     // --- QUERY DATA SELESAI (Verifikasi >= 3) ---
+    // Tidak perlu bind parameter user_id karena logika "selesai" global, bukan per user
 
-    // Fisika Selesai
+    // 1. Fisika Selesai
     $query_fisika_selesai = "
         SELECT 
             m.id_m_hasil_uji, m.no_analisa, m.nama_pelanggan, m.jenis_sampel, m.tanggal_pengujian,
@@ -68,7 +78,7 @@ if ($view == 'pending') {
         ORDER BY m.id_m_hasil_uji DESC";
     $sql_fisika = mysqli_query($con, $query_fisika_selesai);
 
-    // Bakteriologi Selesai
+    // 2. Bakteriologi Selesai
     $query_bakteri_selesai = "
         SELECT 
             m.id_m_hasil_uji, m.no_analisa, m.nama_pelanggan, m.jenis_sampel, m.tanggal_pengujian,
@@ -81,14 +91,17 @@ if ($view == 'pending') {
     $sql_bakteri = mysqli_query($con, $query_bakteri_selesai);
 }
 
+// Handling Notifikasi Pesan
 $message = '';
 $alertType = 'success';
 if (isset($_GET['pesan'])) {
     if ($_GET['pesan'] == 'verif_sukses') {
         $message = '✅ Data berhasil diverifikasi.';
-    }
-    if ($_GET['pesan'] == 'verif_gagal') {
+    } elseif ($_GET['pesan'] == 'verif_gagal') {
         $message = '❌ Anda sudah pernah memverifikasi data ini.';
+        $alertType = 'danger';
+    } elseif ($_GET['pesan'] == 'token_error') {
+        $message = '❌ Token CSRF tidak valid.';
         $alertType = 'danger';
     }
 }
@@ -149,8 +162,8 @@ if (isset($_GET['pesan'])) {
 
                     <h5 class="text-primary">Fisika & Kimia</h5>
                     <div class="table-responsive mb-4">
-                        <table class="table table-bordered table-striped">
-                            <thead class="table-primary">
+                        <table class="table table-bordered table-striped align-middle">
+                            <thead class="table-primary text-center">
                                 <tr>
                                     <th>No Analisa</th>
                                     <th>Pelanggan</th>
@@ -164,14 +177,20 @@ if (isset($_GET['pesan'])) {
                                     <tr>
                                         <td><?php echo htmlspecialchars($r['no_analisa']); ?></td>
                                         <td><?php echo htmlspecialchars($r['nama_pelanggan']); ?></td>
-                                        <td><?php echo htmlspecialchars($r['tanggal_pengujian']); ?></td>
-                                        <td><span class="badge bg-warning text-dark"><?= $r['total_verifikasi'] ?> / 3</span></td>
-                                        <td>
+                                        <td class="text-center"><?php echo htmlspecialchars($r['tanggal_pengujian']); ?></td>
+                                        <td class="text-center"><span class="badge bg-warning text-dark"><?= $r['total_verifikasi'] ?> / 3</span></td>
+                                        <td class="text-center">
                                             <a href="<?= BASE_URL ?>admin/generate_pdf.php?id_m_hasil_uji=<?= $r['id_m_hasil_uji']; ?>" target="_blank" class="btn btn-info btn-sm"><i class="fa fa-eye"></i> PDF</a>
                                             <?php if ($r['user_sudah_verifikasi']): ?>
                                                 <button class="btn btn-success btn-sm" disabled><i class="fa fa-check"></i> Sudah</button>
                                             <?php else: ?>
-                                                <button class="btn btn-primary btn-sm btn-verif" data-id="<?= $r['id_m_hasil_uji']; ?>" data-tipe="fisika" data-bs-toggle="modal" data-bs-target="#modalVerif"><i class="fa fa-pencil"></i> Verifikasi</button>
+                                                <button class="btn btn-primary btn-sm btn-verif"
+                                                    data-id="<?= $r['id_m_hasil_uji']; ?>"
+                                                    data-tipe="fisika"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#modalVerif">
+                                                    <i class="fa fa-pencil"></i> Verifikasi
+                                                </button>
                                             <?php endif; ?>
                                         </td>
                                     </tr>
@@ -181,10 +200,10 @@ if (isset($_GET['pesan'])) {
                         </table>
                     </div>
 
-                    <h5 class="text-primary mt-4">Mikrobiologi</h5>
+                    <h5 class="text-success mt-4">Mikrobiologi</h5>
                     <div class="table-responsive">
-                        <table class="table table-bordered table-striped">
-                            <thead class="table-primary">
+                        <table class="table table-bordered table-striped align-middle">
+                            <thead class="table-success text-center">
                                 <tr>
                                     <th>No Analisa</th>
                                     <th>Pelanggan</th>
@@ -198,14 +217,20 @@ if (isset($_GET['pesan'])) {
                                     <tr>
                                         <td><?php echo htmlspecialchars($r['no_analisa']); ?></td>
                                         <td><?php echo htmlspecialchars($r['nama_pelanggan']); ?></td>
-                                        <td><?php echo htmlspecialchars($r['tanggal_pengujian']); ?></td>
-                                        <td><span class="badge bg-warning text-dark"><?= $r['total_verifikasi'] ?> / 3</span></td>
-                                        <td>
+                                        <td class="text-center"><?php echo htmlspecialchars($r['tanggal_pengujian']); ?></td>
+                                        <td class="text-center"><span class="badge bg-warning text-dark"><?= $r['total_verifikasi'] ?> / 3</span></td>
+                                        <td class="text-center">
                                             <a href="<?= BASE_URL ?>admin/generate_pdf_bacteriology.php?id_m_hasil_uji=<?= $r['id_m_hasil_uji']; ?>" target="_blank" class="btn btn-info btn-sm"><i class="fa fa-eye"></i> PDF</a>
                                             <?php if ($r['user_sudah_verifikasi']): ?>
                                                 <button class="btn btn-success btn-sm" disabled><i class="fa fa-check"></i> Sudah</button>
                                             <?php else: ?>
-                                                <button class="btn btn-primary btn-sm btn-verif" data-id="<?= $r['id_m_hasil_uji']; ?>" data-tipe="bakteri" data-bs-toggle="modal" data-bs-target="#modalVerif"><i class="fa fa-pencil"></i> Verifikasi</button>
+                                                <button class="btn btn-primary btn-sm btn-verif"
+                                                    data-id="<?= $r['id_m_hasil_uji']; ?>"
+                                                    data-tipe="bakteri"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#modalVerif">
+                                                    <i class="fa fa-pencil"></i> Verifikasi
+                                                </button>
                                             <?php endif; ?>
                                         </td>
                                     </tr>
@@ -218,10 +243,10 @@ if (isset($_GET['pesan'])) {
                 <?php else: ?>
                     <h4 class="mb-4 border-bottom pb-2">Arsip Data Terverifikasi Selesai</h4>
 
-                    <h5 class="text-success">Fisika & Kimia</h5>
+                    <h5 class="text-primary">Fisika & Kimia</h5>
                     <div class="table-responsive mb-4">
-                        <table class="table table-bordered table-hover" id="table-fisika-selesai">
-                            <thead class="table-success">
+                        <table class="table table-bordered table-hover align-middle" id="table-fisika-selesai">
+                            <thead class="table-primary text-center">
                                 <tr>
                                     <th>No Analisa</th>
                                     <th>Pelanggan</th>
@@ -235,9 +260,9 @@ if (isset($_GET['pesan'])) {
                                     <tr>
                                         <td><?php echo htmlspecialchars($r['no_analisa']); ?></td>
                                         <td><?php echo htmlspecialchars($r['nama_pelanggan']); ?></td>
-                                        <td><?php echo htmlspecialchars($r['tanggal_pengujian']); ?></td>
-                                        <td><span class="badge bg-success">Selesai (3/3)</span></td>
-                                        <td>
+                                        <td class="text-center"><?php echo htmlspecialchars($r['tanggal_pengujian']); ?></td>
+                                        <td class="text-center"><span class="badge bg-success">Selesai (3/3)</span></td>
+                                        <td class="text-center">
                                             <a href="<?= BASE_URL ?>admin/generate_pdf.php?id_m_hasil_uji=<?= $r['id_m_hasil_uji']; ?>" target="_blank" class="btn btn-outline-success btn-sm"><i class="fa fa-print"></i> Cetak PDF Final</a>
                                         </td>
                                     </tr>
@@ -248,8 +273,8 @@ if (isset($_GET['pesan'])) {
 
                     <h5 class="text-success mt-4">Mikrobiologi</h5>
                     <div class="table-responsive">
-                        <table class="table table-bordered table-hover" id="table-bakteri-selesai">
-                            <thead class="table-success">
+                        <table class="table table-bordered table-hover align-middle" id="table-bakteri-selesai">
+                            <thead class="table-success text-center">
                                 <tr>
                                     <th>No Analisa</th>
                                     <th>Pelanggan</th>
@@ -263,9 +288,9 @@ if (isset($_GET['pesan'])) {
                                     <tr>
                                         <td><?php echo htmlspecialchars($r['no_analisa']); ?></td>
                                         <td><?php echo htmlspecialchars($r['nama_pelanggan']); ?></td>
-                                        <td><?php echo htmlspecialchars($r['tanggal_pengujian']); ?></td>
-                                        <td><span class="badge bg-success">Selesai (3/3)</span></td>
-                                        <td>
+                                        <td class="text-center"><?php echo htmlspecialchars($r['tanggal_pengujian']); ?></td>
+                                        <td class="text-center"><span class="badge bg-success">Selesai (3/3)</span></td>
+                                        <td class="text-center">
                                             <a href="<?= BASE_URL ?>admin/generate_pdf_bacteriology.php?id_m_hasil_uji=<?= $r['id_m_hasil_uji']; ?>" target="_blank" class="btn btn-outline-success btn-sm"><i class="fa fa-print"></i> Cetak PDF Final</a>
                                         </td>
                                     </tr>
@@ -288,16 +313,19 @@ if (isset($_GET['pesan'])) {
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <p>Apakah Anda yakin ingin memverifikasi data ini? <br>
-                            <small class="text-muted">Tindakan ini akan mencatat nama Anda sebagai penanda tangan dokumen ini.</small>
-                        </p>
+                        <div class="text-center mb-3">
+                            <i class="fas fa-signature fa-3x text-primary"></i>
+                        </div>
+                        <p class="text-center">Apakah Anda yakin ingin memverifikasi dokumen ini?</p>
+                        <p class="text-center small text-muted">Tindakan ini akan mencatat nama Anda (<strong><?= htmlspecialchars($user_nama) ?></strong>) sebagai penanda tangan dokumen secara digital.</p>
+
                         <input type="hidden" name="id_m_hasil_uji" id="verif_id">
                         <input type="hidden" name="tipe" id="verif_tipe">
                         <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-primary">Ya, Verifikasi</button>
+                    <div class="modal-footer justify-content-center">
+                        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary px-4">Ya, Verifikasi</button>
                     </div>
                 </div>
             </form>
@@ -309,17 +337,19 @@ if (isset($_GET['pesan'])) {
     <script type="text/javascript" src="<?= BASE_URL ?>datatables/datatables.js"></script>
     <script>
         $(document).ready(function() {
+            // Toggle Sidebar
             $("#menu-toggle").click(function(e) {
                 e.preventDefault();
                 $("#wrapper").toggleClass("toggled");
             });
 
+            // Isi Data Modal Verifikasi
             $('.btn-verif').click(function() {
                 $('#verif_id').val($(this).data('id'));
                 $('#verif_tipe').val($(this).data('tipe'));
             });
 
-            // Aktifkan Datatable hanya jika tabel arsip ada (view=selesai)
+            // Datatable hanya untuk view arsip (agar tidak berat di view pending)
             if ($('#table-fisika-selesai').length) {
                 $('#table-fisika-selesai, #table-bakteri-selesai').DataTable({
                     "pageLength": 10,
@@ -331,6 +361,8 @@ if (isset($_GET['pesan'])) {
                     }
                 });
             }
+
+            // Bersihkan URL parameter pesan setelah 2 detik
             if (window.history.replaceState) {
                 const url = new URL(window.location.href);
                 if (url.searchParams.has('pesan')) {
@@ -343,4 +375,9 @@ if (isset($_GET['pesan'])) {
 </body>
 
 </html>
-<?php mysqli_close($con); ?>
+<?php
+// Tutup statement jika ada
+if (isset($stmt_f)) mysqli_stmt_close($stmt_f);
+if (isset($stmt_b)) mysqli_stmt_close($stmt_b);
+mysqli_close($con);
+?>

@@ -2,19 +2,18 @@
 <?php
 include '../database/database.php';
 include '../config.php';
-session_start(); // Pastikan session_start() ada di awal, sebelum output apapun
+
+// --- SECURITY: Konfigurasi Session Aman ---
+session_set_cookie_params([
+    'httponly' => true,
+    'samesite' => 'Strict'
+]);
+session_start();
 
 if (!isset($_SESSION['status']) || $_SESSION['status'] != "login") {
     header("location:../index.php?pesan=belum_login");
     exit();
 }
-
-// **PENTING: MANAJEMEN KONEKSI DATABASE**
-// Dalam kode sebelumnya, ada isu mysqli_close() yang memutus koneksi terlalu dini.
-// Untuk saat ini, saya akan menempatkan mysqli_close($con) di bagian paling bawah file
-// setelah semua query PHP selesai, atau pastikan koneksi tetap aktif selama dibutuhkan.
-// Pastikan $con adalah objek koneksi yang valid dari database.php.
-// Untuk demo ini, saya asumsikan $con tetap aktif sampai akhir file.
 
 $message = '';
 $alertType = 'success';
@@ -44,15 +43,7 @@ if (isset($_GET['pesan'])) {
     }
 }
 
-// Ambil data master hasil uji untuk tabel
-//$query_master_data = "SELECT id_m_hasil_uji, no_lab, jenis_sampel, pengirim, penerima, lokasi_uji, tanggal_uji
-//                      FROM master_hasil_uji
-//                     ORDER BY id_m_hasil_uji DESC";
-//$sql_master_data = mysqli_query($con, $query_master_data);
-
-//if (!$sql_master_data) {
-//    die("Query database gagal: " . mysqli_error($con));
-//}
+// --- QUERY UTAMA (Optimized) ---
 $query_master_data = "
     SELECT
         m.id_m_hasil_uji,
@@ -69,14 +60,14 @@ $query_master_data = "
         m.no_analisa,
         m.wilayah,
         
-        -- Ini adalah logika status UJI (Selesai/Proses)
+        -- Logika Status UJI
         CASE
             WHEN SUM(CASE WHEN h.status = 'Proses' THEN 1 ELSE 0 END) > 0 THEN 'Proses'
             WHEN COUNT(h.id) > 0 THEN 'Selesai'
             ELSE 'Belum Ada Detail'
         END AS status_display,
 
-        -- Ini adalah logika status VERIFIKASI (Hitung dari log)
+        -- Logika Status VERIFIKASI
         COUNT(DISTINCT lv.id_user_verifier) as total_verifikasi
         
     FROM
@@ -94,7 +85,9 @@ $query_master_data = "
 $sql_master_data = mysqli_query($con, $query_master_data);
 
 if (!$sql_master_data) {
-    die("Query database gagal: " . mysqli_error($con));
+    // Log error di server, jangan tampilkan detail ke user
+    error_log("Database Error: " . mysqli_error($con));
+    die("Terjadi kesalahan sistem. Silakan hubungi administrator.");
 }
 ?>
 <html lang="en">
@@ -108,7 +101,6 @@ if (!$sql_master_data) {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
     <link href="style.css" rel="stylesheet">
-
 </head>
 
 <body>
@@ -154,7 +146,6 @@ if (!$sql_master_data) {
                                 <th>No Analisa</th>
                                 <th>Jenis Sample</th>
                                 <th>Pelanggan</th>
-                                <!--<th>penerima</th>-->
                                 <th>Status Uji</th>
                                 <th>Status Verifikasi</th>
                                 <th>Alamat</th>
@@ -165,14 +156,12 @@ if (!$sql_master_data) {
                         </thead>
                         <tbody>
                             <?php
-                            // Loop melalui hasil query yang sudah dioptimalkan
                             while ($result_master = mysqli_fetch_assoc($sql_master_data)) {
                             ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($result_master['no_analisa']); ?></td>
                                     <td><?php echo htmlspecialchars($result_master['jenis_sampel']); ?></td>
                                     <td><?php echo htmlspecialchars($result_master['nama_pelanggan']); ?></td>
-                                    <!--<td><?php echo htmlspecialchars($result_master['penerima']); ?></td>-->
                                     <td><?php echo htmlspecialchars($result_master['status_display']); ?></td>
                                     <td>
                                         <?php
@@ -220,7 +209,6 @@ if (!$sql_master_data) {
                             ?>
                         </tbody>
                     </table>
-
                 </div>
             </div>
         </div>
@@ -235,7 +223,6 @@ if (!$sql_master_data) {
                         <h5 class="modal-title" id="modalTambahLabel">Tambah Data Hasil Uji</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-
                     <div class="modal-body">
                         <div class="row">
                             <div class="col-md-4">
@@ -243,10 +230,12 @@ if (!$sql_master_data) {
                                 <select name="id_paket" class="form-select mb-3" id="paketSelect" required>
                                     <option value="" disabled selected>-- Pilih Paket --</option>
                                     <?php
-                                    // PASTIKAN KONEKSI $con VALID DI SINI
-                                    $paket_query = mysqli_query($con, "SELECT id_paket, nama_paket FROM paket_pengujian_fisika_kimia");
-                                    while ($p = mysqli_fetch_assoc($paket_query)) {
-                                        echo "<option value='{$p['id_paket']}'>" . htmlspecialchars($p['nama_paket']) . "</option>";
+                                    // Pastikan koneksi $con valid
+                                    if ($con) {
+                                        $paket_query = mysqli_query($con, "SELECT id_paket, nama_paket FROM paket_pengujian_fisika_kimia");
+                                        while ($p = mysqli_fetch_assoc($paket_query)) {
+                                            echo "<option value='{$p['id_paket']}'>" . htmlspecialchars($p['nama_paket']) . "</option>";
+                                        }
                                     }
                                     ?>
                                 </select>
@@ -317,7 +306,6 @@ if (!$sql_master_data) {
                             </div>
                         </div>
                     </div>
-
                     <div class="modal-footer">
                         <button type="submit" class="btn btn-primary">Simpan</button>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
@@ -404,8 +392,6 @@ if (!$sql_master_data) {
 
                                 <label class="form-label">Tanggal Pengujian</label>
                                 <input type="date" name="tanggal_pengujian" id="edit_tanggal_pengujian_all" class="form-control mb-3" required>
-
-
                             </div>
 
                             <div class="col-md-8">
@@ -493,68 +479,67 @@ if (!$sql_master_data) {
     <script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
 
     <script>
-        // --- FUNGSI BARU (VERSI DEFINITIF FINAL) DIMULAI ---
+        // --- FUNGSI CEK KEPATUHAN (PERBAIKAN KOMPREHENSIF) ---
         function cekKepatuhan(hasil, standar) {
-            if (hasil === null || standar === null || hasil.toString().trim() === '' || standar.toString().trim() === '') {
+            if (hasil === null || standar === null || hasil === undefined || standar === undefined) {
                 return '';
             }
 
             let standarStr = standar.toString().trim();
             let hasilStr = hasil.toString().trim();
 
+            if (hasilStr === '' || standarStr === '') {
+                return '';
+            }
+
             if (standarStr.toLowerCase().includes('suhu udara')) {
                 return '';
             }
 
-            // --- PERBAIKAN FINAL DI SINI ---
-            // Menggunakan /g (global) untuk memastikan SEMUA koma diganti, bukan hanya yang pertama.
-            standarStr = standarStr.replace(/,/g, '.');
-            hasilStr = hasilStr.replace(/,/g, '.');
-            // --- AKHIR PERBAIKAN FINAL ---
+            // Ganti koma dengan titik untuk perhitungan matematika
+            let standarClean = standarStr.replace(/,/g, '.');
+            let hasilClean = hasilStr.replace(/,/g, '.');
+            let hasilNum = parseFloat(hasilClean);
 
-            let hasilNum = parseFloat(hasilStr);
-
-            if (standarStr.includes('-')) {
-                let parts = standarStr.split('-').map(p => p.trim());
+            // Kasus Rentang (e.g., "6.5 - 8.5")
+            if (standarClean.includes('-')) {
+                let parts = standarClean.split('-').map(p => p.trim());
                 if (parts.length === 2) {
                     let min = parseFloat(parts[0]);
                     let max = parseFloat(parts[1]);
 
                     if (!isNaN(min) && !isNaN(max) && !isNaN(hasilNum)) {
-                        const epsilon = 0.000001;
-                        let isMemenuhi = (hasilNum > min - epsilon) && (hasilNum < max + epsilon);
+                        let isMemenuhi = (hasilNum >= min) && (hasilNum <= max);
                         return isMemenuhi ? 'Memenuhi' : 'Tidak Memenuhi';
                     }
                 }
             }
 
-            if (standarStr.startsWith('<')) {
-                let max = parseFloat(standarStr.substring(1).trim());
+            // Kasus Kurang Dari (e.g., "< 10")
+            if (standarClean.startsWith('<')) {
+                let max = parseFloat(standarClean.substring(1).trim());
                 if (!isNaN(max) && !isNaN(hasilNum)) {
                     return hasilNum < max ? 'Memenuhi' : 'Tidak Memenuhi';
                 }
             }
 
-            if (standarStr.startsWith('>')) {
-                let min = parseFloat(standarStr.substring(1).trim());
+            // Kasus Lebih Dari (e.g., "> 1")
+            if (standarClean.startsWith('>')) {
+                let min = parseFloat(standarClean.substring(1).trim());
                 if (!isNaN(min) && !isNaN(hasilNum)) {
                     return hasilNum > min ? 'Memenuhi' : 'Tidak Memenuhi';
                 }
             }
 
-            if (isNaN(hasilNum)) {
-                return hasilStr.toLowerCase() === standarStr.toLowerCase() ? 'Memenuhi' : 'Tidak Memenuhi';
-            }
-
-            let standarNum = parseFloat(standarStr);
-            if (!isNaN(standarNum)) {
+            // Kasus Maksimum Sederhana (anggap angka tunggal adalah batas maksimum, e.g., "500")
+            let standarNum = parseFloat(standarClean);
+            if (!isNaN(standarNum) && !isNaN(hasilNum)) {
                 return hasilNum <= standarNum ? 'Memenuhi' : 'Tidak Memenuhi';
             }
 
-            return '';
+            // Fallback string comparison
+            return hasilStr.toLowerCase() === standarStr.toLowerCase() ? 'Memenuhi' : 'Tidak Memenuhi';
         }
-        // --- FUNGSI BARU (VERSI DEFINITIF FINAL) SELESAI ---
-
 
         // Inisialisasi Toast Bootstrap
         window.addEventListener('DOMContentLoaded', () => {
@@ -592,52 +577,41 @@ if (!$sql_master_data) {
                 }
             })
 
+            var tabelBody = $('#tabelLab tbody');
+
             $("#menu-toggle").click(function(e) {
                 e.preventDefault();
                 $("#wrapper").toggleClass("toggled");
             });
 
-            // Variabel global untuk menyimpan parameter yang sudah ada di form
+            // Variabel global untuk menyimpan parameter
             let existingParameterIds = new Set();
             let parameterTableInitialized = false;
 
-            // Fungsi untuk menginisialisasi tabel parameter
             function initializeParameterTable() {
                 if (!parameterTableInitialized) {
                     $('#parameterContainer').html(`
                     <table id="tambahParameterTable" class="table table-bordered table-sm">
                         <thead class="table-light">
                             <tr>
-                                <th>No</th>
-                                <th>Parameter</th>
-                                <th>Satuan</th>
-                                <th>Kadar Maksimum</th>
-                                <th>Metode</th>
-                                <th>Kategori</th>
-                                <th>Hasil Uji</th>
-                                <th>Keterangan</th>
-                                <th>Aksi</th>
+                                <th>No</th><th>Parameter</th><th>Satuan</th><th>Kadar Maksimum</th>
+                                <th>Metode</th><th>Kategori</th><th>Hasil Uji</th><th>Keterangan</th><th>Aksi</th>
                             </tr>
                         </thead>
-                        <tbody>
-                        </tbody>
-                    </table>
-                `);
+                        <tbody></tbody>
+                    </table>`);
                     parameterTableInitialized = true;
                     existingParameterIds.clear();
                 }
             }
 
-            // Fungsi untuk menambahkan baris parameter ke tabel
             function addParameterRow(param) {
                 if (existingParameterIds.has(param.id_parameter)) {
-                    console.warn('Parameter "' + param.nama_parameter + '" sudah ada di daftar.');
                     alert('Parameter "' + param.nama_parameter + '" sudah ada di daftar.');
                     return;
                 }
 
                 initializeParameterTable();
-
                 let $tbody = $('#tambahParameterTable tbody');
                 let rowCount = $tbody.children('tr').length + 1;
 
@@ -657,29 +631,20 @@ if (!$sql_master_data) {
                         <input type="hidden" name="param_details[${param.id_parameter}][metode_uji]" value="${param.metode_uji || ''}">
                         <input type="hidden" name="param_details[${param.id_parameter}][kategori]" value="${param.kategori || ''}">
                     </td>
-                    <td>
-                        <input type="text" class="form-control form-control-sm keterangan-status" name="keterangan[${param.id_parameter}]" readonly>
-                    </td>
-                    <td>
-                        <button type="button" class="btn btn-sm btn-outline-danger btn-remove-param">
-                            <i class="fa fa-times"></i> Hapus
-                        </button>
-                    </td>
-                </tr>
-            `;
+                    <td><input type="text" class="form-control form-control-sm keterangan-status" name="keterangan[${param.id_parameter}]" readonly></td>
+                    <td><button type="button" class="btn btn-sm btn-outline-danger btn-remove-param"><i class="fa fa-times"></i> Hapus</button></td>
+                </tr>`;
                 $tbody.append(newRow);
                 existingParameterIds.add(param.id_parameter);
                 updateRowNumbers();
             }
 
-            // Fungsi untuk memperbarui nomor urut di kolom pertama
             function updateRowNumbers() {
                 $('#tambahParameterTable tbody tr').each(function(index) {
                     $(this).find('td:first').text(index + 1);
                 });
             }
 
-            // Event listener untuk tombol hapus parameter
             $(document).on('click', '.btn-remove-param', function() {
                 let $row = $(this).closest('tr');
                 let paramId = $row.data('param-id');
@@ -692,12 +657,11 @@ if (!$sql_master_data) {
                 }
             });
 
-            // Event listener untuk validasi real-time di Modal Tambah
+            // Validasi Real-time (Tambah)
             $('#parameterContainer').on('input', '.hasil-uji-input', function() {
                 let $row = $(this).closest('tr');
                 let hasilUji = $(this).val();
                 let kadarMaksimumStr = $row.find('.kadar-maksimum').text();
-
                 let $keteranganInput = $row.find('.keterangan-status');
                 let $hasilUjiInput = $(this);
 
@@ -705,7 +669,6 @@ if (!$sql_master_data) {
                 $hasilUjiInput.removeClass('is-invalid');
 
                 let status = cekKepatuhan(hasilUji, kadarMaksimumStr);
-
                 if (status === 'Memenuhi') {
                     $keteranganInput.val('Memenuhi').addClass('text-bg-success');
                 } else if (status === 'Tidak Memenuhi') {
@@ -714,12 +677,11 @@ if (!$sql_master_data) {
                 }
             });
 
-            // Event listener untuk validasi real-time di Modal Edit
+            // Validasi Real-time (Edit)
             $('#editParameterContainer').on('input', '.hasil-uji-input', function() {
                 let $row = $(this).closest('tr');
                 let hasilUji = $(this).val();
                 let kadarMaksimumStr = $row.find('.kadar-maksimum').text();
-
                 let $keteranganInput = $row.find('.keterangan-status');
                 let $hasilUjiInput = $(this);
 
@@ -727,7 +689,6 @@ if (!$sql_master_data) {
                 $hasilUjiInput.removeClass('is-invalid');
 
                 let status = cekKepatuhan(hasilUji, kadarMaksimumStr);
-
                 if (status === 'Memenuhi') {
                     $keteranganInput.val('Memenuhi').addClass('text-bg-success');
                 } else if (status === 'Tidak Memenuhi') {
@@ -736,7 +697,7 @@ if (!$sql_master_data) {
                 }
             });
 
-            // AJAX untuk memuat parameter berdasarkan paket yang dipilih (untuk modal tambah)
+            // Logic Select Paket
             $('#paketSelect').change(function() {
                 var id_paket = $(this).val();
                 existingParameterIds.clear();
@@ -766,17 +727,22 @@ if (!$sql_master_data) {
                                 parameterTableInitialized = false;
                             }
                         },
-                        error: function(xhr, status, error) {
-                            console.error("AJAX Error: ", status, error, xhr.responseText);
-                            $('#parameterContainer').html('<p class="text-danger">Gagal memuat parameter. Silakan coba lagi. (Error: ' + error + ')</p>');
+                        error: function() {
+                            $('#parameterContainer').html('<p class="text-danger">Gagal memuat parameter.</p>');
                         }
                     });
                 } else {
-                    $('#parameterContainer').html('<p class="text-muted">Silakan pilih paket atau tambahkan parameter secara manual...</p>');
+                    $('#parameterContainer').html('<p class="text-muted">Silakan pilih paket...</p>');
                 }
             });
 
-            // Inisialisasi Select2 untuk modalAddCustomParameter
+            // Nested Modal Handling
+            $('#addParameterBtn').on('click', function(e) {
+                e.preventDefault();
+                var customParameterModal = new bootstrap.Modal(document.getElementById('modalAddCustomParameter'));
+                customParameterModal.show();
+            });
+
             $('#modalTambah').on('shown.bs.modal', function() {
                 if (!$('#selectParameterToAdd').data('select2')) {
                     $('#selectParameterToAdd').select2({
@@ -803,10 +769,7 @@ if (!$sql_master_data) {
                                             text: item.nama_parameter,
                                             data: item
                                         };
-                                    }),
-                                    pagination: {
-                                        more: (params.page * 10) < filteredData.length
-                                    }
+                                    })
                                 };
                             },
                             cache: true
@@ -814,65 +777,21 @@ if (!$sql_master_data) {
                         minimumInputLength: 1
                     });
                 }
-                if ($('#paketSelect').val() === '' && $('#tambahParameterTable tbody tr').length === 0 && !parameterTableInitialized) {
-                    $('#parameterContainer').html('<p class="text-muted">Silakan pilih paket atau tambahkan parameter secara manual...</p>');
-                }
             });
 
-            // Event listener untuk tombol "Tambah" di modal Tambah Parameter Kustom
             $('#addSelectedParameterBtn').on('click', function() {
                 var selectedOption = $('#selectParameterToAdd').select2('data');
                 if (selectedOption && selectedOption.length > 0) {
-                    var param = selectedOption[0].data;
-                    addParameterRow(param);
-                    $('#modalAddCustomParameter').modal('hide');
+                    addParameterRow(selectedOption[0].data);
+                    var modal = bootstrap.Modal.getInstance(document.getElementById('modalAddCustomParameter'));
+                    modal.hide();
                     $('#selectParameterToAdd').val(null).trigger('change');
                 } else {
                     alert('Pilih parameter terlebih dahulu.');
                 }
             });
 
-            // Reset Select2 saat modal Tambah Parameter Kustom ditutup
-            $('#modalAddCustomParameter').on('hidden.bs.modal', function() {
-                $('#selectParameterToAdd').val(null).trigger('change');
-            });
-
-
-            // *** START BARIS BARU UNTUK NESTED MODAL FIX V2 ***
-            $('#modalTambah').on('show.bs.modal', function() {
-                $('body').addClass('modal-open');
-            });
-
-            $('#modalTambah').on('hidden.bs.modal', function() {
-                $('body').removeClass('modal-open');
-                $('#formTambah')[0].reset();
-                $('#parameterContainer').html('<p class="text-muted">Silakan pilih paket atau tambahkan parameter secara manual...</p>');
-                existingParameterIds.clear();
-                parameterTableInitialized = false;
-                $('#selectParameterToAdd').val(null).trigger('change');
-                $('#paketSelect').val('');
-            });
-
-            $('#addParameterBtn').on('click', function(e) {
-                e.preventDefault();
-                var customParameterModal = new bootstrap.Modal(document.getElementById('modalAddCustomParameter'));
-                customParameterModal.show();
-            });
-
-            $('#modalAddCustomParameter').on('show.bs.modal', function() {
-                $('.modal-backdrop.show').first().addClass('d-none');
-                $(this).css('z-index', 1055);
-            });
-
-            $('#modalAddCustomParameter').on('hidden.bs.modal', function() {
-                $('.modal-backdrop.show').first().removeClass('d-none');
-                $('#modalTambah').focus();
-            });
-            // *** END BARIS BARU UNTUK NESTED MODAL FIX V2 ***
-
-
-            // EVENT UNTUK MODAL DETAIL HASIL UJI
-            var tabelBody = $('#tabelLab tbody');
+            // Modal Detail
             tabelBody.on('click', '.btn-detail', function() {
                 var id_m_hasil_uji = $(this).data('id_m_hasil_uji');
                 var no_analisa = $(this).data('no_analisa');
@@ -884,20 +803,18 @@ if (!$sql_master_data) {
                         id_m_hasil_uji: id_m_hasil_uji
                     },
                     beforeSend: function() {
-                        $('#detailParameterContainer').html('<p class="text-info">Memuat detail hasil uji...</p>');
+                        $('#detailParameterContainer').html('<p class="text-info">Memuat detail...</p>');
                     },
                     success: function(response) {
                         $('#detailParameterContainer').html(response);
                     },
-                    error: function(xhr, status, error) {
-                        console.error("AJAX Error: ", status, error, xhr.responseText);
-                        $('#detailParameterContainer').html('<p class="text-danger">Gagal memuat detail hasil uji. Silakan coba lagi.</p>');
+                    error: function() {
+                        $('#detailParameterContainer').html('<p class="text-danger">Error memuat data.</p>');
                     }
                 });
             });
 
-            // --- LOGIKA UTAMA MODAL EDIT YANG DIPERBAIKI ---
-            var tabelBody = $('#tabelLab tbody');
+            // --- SECURITY FIX: MODAL EDIT DENGAN DOM MANIPULATION ---
             tabelBody.on('click', '.btn-edit', function() {
                 var id_m_hasil_uji = $(this).data('id_m_hasil_uji');
 
@@ -918,7 +835,7 @@ if (!$sql_master_data) {
                             var master = response.master_data;
                             var detail = response.detail_data;
 
-                            // Isi semua field data master dengan benar
+                            // Gunakan .val() untuk mengisi data (Aman dari XSS)
                             $('#edit_id_m_hasil_uji_all').val(master.id_m_hasil_uji);
                             $('#edit_nama_pelanggan_all').val(master.nama_pelanggan);
                             $('#edit_alamat_all').val(master.alamat);
@@ -935,45 +852,68 @@ if (!$sql_master_data) {
                             $('#editModalNoAnalisaTitle').text(master.no_analisa);
 
                             var hasProses = detail.some(param => param.status === 'Proses');
-                            var currentStatus = hasProses ? 'Proses' : 'Selesai';
+                            $('#global_status_param_all').val(hasProses ? 'Proses' : 'Selesai');
 
-                            $('#global_status_param_all').val(currentStatus);
+                            // Membangun Tabel Menggunakan jQuery Object (Aman)
+                            var $table = $('<table class="table table-bordered table-sm">');
+                            var $thead = $('<thead class="table-light"><tr><th>No</th><th>Parameter</th><th>Satuan</th><th>Kadar Maksimum</th><th>Metode</th><th>Kategori</th><th>Hasil Uji</th><th>Keterangan</th></tr></thead>');
+                            var $tbody = $('<tbody>');
 
-                            var html_detail = '<table class="table table-bordered table-sm">';
-                            html_detail += '<thead class="table-light"><tr><th>No</th><th>Parameter</th><th>Satuan</th><th>Kadar Maksimum</th><th>Metode</th><th>Kategori</th><th>Hasil Uji</th><th>Keterangan</th></tr></thead><tbody>';
                             if (detail.length > 0) {
                                 $.each(detail, function(index, param) {
                                     let status = cekKepatuhan(param.hasil, param.kadar_maksimum);
                                     let classAwal = (status === 'Memenuhi') ? 'text-bg-success' : (status === 'Tidak Memenuhi' ? 'text-bg-danger' : '');
-                                    html_detail += `
-                                        <tr>
-                                            <td>${index + 1}</td>
-                                            <td>${(param.nama_parameter || '')}</td>
-                                            <td>${(param.satuan || '')}</td>
-                                            <td class="kadar-maksimum">${(param.kadar_maksimum || '')}</td>
-                                            <td>${(param.metode_uji || '')}</td>
-                                            <td>${(param.kategori || '')}</td>
-                                            <td><input type="text" class="form-control form-control-sm hasil-uji-input" name="hasil_uji[${param.id}]" value="${(param.hasil || '')}" required></td>
-                                            <td><input type="text" class="form-control form-control-sm keterangan-status ${classAwal}" value="${status}" readonly></td>
-                                        </tr>`;
+
+                                    var $tr = $('<tr>');
+                                    $tr.append($('<td>').text(index + 1));
+                                    $tr.append($('<td>').text(param.nama_parameter || ''));
+                                    $tr.append($('<td>').text(param.satuan || ''));
+                                    $tr.append($('<td class="kadar-maksimum">').text(param.kadar_maksimum || ''));
+                                    $tr.append($('<td>').text(param.metode_uji || ''));
+                                    $tr.append($('<td>').text(param.kategori || ''));
+
+                                    // Input Hasil (Name menggunakan ID dari DB)
+                                    var $tdHasil = $('<td>');
+                                    var $inputHasil = $('<input>').attr({
+                                        type: 'text',
+                                        class: 'form-control form-control-sm hasil-uji-input',
+                                        name: 'hasil_uji[' + param.id + ']',
+                                        required: true
+                                    }).val(param.hasil || '');
+                                    $tdHasil.append($inputHasil);
+                                    $tr.append($tdHasil);
+
+                                    // Input Keterangan (Readonly)
+                                    var $tdKet = $('<td>');
+                                    var $inputKet = $('<input>').attr({
+                                        type: 'text',
+                                        class: 'form-control form-control-sm keterangan-status ' + classAwal,
+                                        readonly: true
+                                    }).val(status);
+                                    $tdKet.append($inputKet);
+                                    $tr.append($tdKet);
+
+                                    $tbody.append($tr);
                                 });
                             } else {
-                                html_detail += '<tr><td colspan="8" class="text-center">Tidak ada parameter uji untuk data ini.</td></tr>';
+                                $tbody.append('<tr><td colspan="8" class="text-center">Tidak ada parameter uji.</td></tr>');
                             }
-                            html_detail += '</tbody></table>';
-                            $('#editParameterContainer').html(html_detail);
+
+                            $table.append($thead).append($tbody);
+                            $('#editParameterContainer').empty().append($table);
+
                         } else {
                             $('#editParameterContainer').html(`<p class="text-danger">Gagal memuat data: ${response.message}</p>`);
                         }
                     },
                     error: function(xhr) {
                         console.error("AJAX Error: ", xhr.responseText);
-                        $('#editParameterContainer').html('<p class="text-danger">Terjadi kesalahan AJAX. Silakan periksa konsol browser.</p>');
+                        $('#editParameterContainer').html('<p class="text-danger">Terjadi kesalahan AJAX.</p>');
                     }
                 });
             });
 
-            // Handler untuk tombol HAPUS
+            // Tombol Hapus
             tabelBody.on('click', '.btn-hapus', function() {
                 var id_m_hasil_uji = $(this).data('id_m_hasil_uji');
                 var no_analisa = $(this).data('no_analisa');
@@ -984,7 +924,6 @@ if (!$sql_master_data) {
     </script>
 
     <?php
-    // Tutup koneksi database di akhir file setelah semua operasi selesai
     if (isset($con) && is_object($con) && method_exists($con, 'close')) {
         mysqli_close($con);
     }

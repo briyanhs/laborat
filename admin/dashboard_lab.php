@@ -2,81 +2,63 @@
 <?php
 include '../database/database.php';
 include '../config.php';
-session_start(); // Pastikan session_start() ada di awal, sebelum output apapun
+
+// --- SECURITY FIX: Pengaturan Cookie Session ---
+session_set_cookie_params([
+    'httponly' => true,
+    'samesite' => 'Strict'
+]);
+session_start();
 
 if (!isset($_SESSION['status']) || $_SESSION['status'] != "login") {
     header("location:../index.php?pesan=belum_login");
     exit();
 }
 
-// Inisialisasi variabel untuk menghindari error jika query gagal
+// Inisialisasi variabel default
 $total_pengujian = 0;
-
-$query_summary = "
-    SELECT SUM(total) AS total_gabungan
-    FROM (
-        SELECT COUNT(*) AS total FROM master_hasil_uji_bacteriology
-        UNION ALL
-        SELECT COUNT(*) AS total FROM master_hasil_uji
-    ) AS subquery;";
-
-$result_summary = mysqli_query($con, $query_summary);
-
-if ($result_summary) {
-    $summary_data = mysqli_fetch_assoc($result_summary);
-    $total_pengujian = $summary_data['total_gabungan'] ?? 0;
-}
-
-//jml_proses
 $total_proses = 0;
-$query_proses = "
-    SELECT SUM(jml_proses) AS total_proses
-    FROM (
-    SELECT COUNT(DISTINCT master_hasil_uji_bacteriology.id_m_hasil_uji) AS jml_proses
-    FROM master_hasil_uji_bacteriology
-    INNER JOIN hasil_uji_bacteriology ON master_hasil_uji_bacteriology.id_m_hasil_uji = hasil_uji_bacteriology.id_m_hasil_uji
-    WHERE hasil_uji_bacteriology.status = 'Proses'
-
-    UNION ALL
-
-    SELECT COUNT(DISTINCT master_hasil_uji.id_m_hasil_uji) AS jml_proses
-    FROM master_hasil_uji
-    INNER JOIN hasil_uji ON master_hasil_uji.id_m_hasil_uji = hasil_uji.id_m_hasil_uji
-    WHERE hasil_uji.status = 'Proses'
-) AS subquery;";
-
-$result_proses = mysqli_query($con, $query_proses);
-
-if ($result_proses) {
-    $proses_data = mysqli_fetch_assoc($result_proses);
-    $total_proses = $proses_data['total_proses'] ?? 0;
-}
-
-//jml_selesai
 $total_selesai = 0;
-$query_selesai = "
-    SELECT SUM(jml_selesai) AS total_selesai
+
+// --- OPTIMASI QUERY DATABASE ---
+// Menggabungkan 3 query terpisah menjadi 1 query tunggal agar database tidak berat.
+// Logika: Kita mengambil semua ID unik dari kedua tabel (Bakteri & Fisika/Kimia) beserta statusnya.
+// Kemudian kita hitung jumlahnya menggunakan Conditional Aggregation (SUM CASE WHEN).
+
+$query_dashboard = "
+    SELECT 
+        COUNT(*) as total_gabungan,
+        SUM(CASE WHEN status = 'Proses' THEN 1 ELSE 0 END) as total_proses,
+        SUM(CASE WHEN status = 'Selesai' THEN 1 ELSE 0 END) as total_selesai
     FROM (
-    SELECT COUNT(DISTINCT master_hasil_uji_bacteriology.id_m_hasil_uji) AS jml_selesai
-    FROM master_hasil_uji_bacteriology
-    INNER JOIN hasil_uji_bacteriology ON master_hasil_uji_bacteriology.id_m_hasil_uji = hasil_uji_bacteriology.id_m_hasil_uji
-    WHERE hasil_uji_bacteriology.status = 'Selesai'
+        -- Ambil Data Bakteriologi (Distinct ID agar tidak double count jika parameter banyak)
+        SELECT m.id_m_hasil_uji, h.status
+        FROM master_hasil_uji_bacteriology m
+        JOIN hasil_uji_bacteriology h ON m.id_m_hasil_uji = h.id_m_hasil_uji
+        GROUP BY m.id_m_hasil_uji, h.status
 
-    UNION ALL
+        UNION ALL
 
-    SELECT COUNT(DISTINCT master_hasil_uji.id_m_hasil_uji) AS jml_selesai
-    FROM master_hasil_uji
-    INNER JOIN hasil_uji ON master_hasil_uji.id_m_hasil_uji = hasil_uji.id_m_hasil_uji
-    WHERE hasil_uji.status = 'Selesai'
-) AS subquery;";
+        -- Ambil Data Fisika Kimia
+        SELECT m.id_m_hasil_uji, h.status
+        FROM master_hasil_uji m
+        JOIN hasil_uji h ON m.id_m_hasil_uji = h.id_m_hasil_uji
+        GROUP BY m.id_m_hasil_uji, h.status
+    ) AS combined_data
+";
 
-$result_selesai = mysqli_query($con, $query_selesai);
+$result = mysqli_query($con, $query_dashboard);
 
-if ($result_selesai) {
-    $selesai_data = mysqli_fetch_assoc($result_selesai);
-    $total_selesai = $selesai_data['total_selesai'] ?? 0;
+if ($result) {
+    $data = mysqli_fetch_assoc($result);
+    // Casting ke int untuk keamanan tipe data
+    $total_pengujian = (int) ($data['total_gabungan'] ?? 0);
+    $total_proses    = (int) ($data['total_proses'] ?? 0);
+    $total_selesai   = (int) ($data['total_selesai'] ?? 0);
+} else {
+    // Log error di server jika query gagal (User tidak perlu melihat detail error SQL)
+    error_log("Dashboard Query Error: " . mysqli_error($con));
 }
-
 ?>
 <html lang="en">
 
@@ -89,8 +71,6 @@ if ($result_selesai) {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
     <link href="<?= BASE_URL ?>admin/style.css" rel="stylesheet">
-    
-
 </head>
 
 <body>
@@ -153,14 +133,9 @@ if ($result_selesai) {
                         </div>
                     </div>
                 </div>
-                <?php if (!empty($message)): ?>
-                    <div class="alert alert-<?php echo $alertType; ?> alert-dismissible fade show" role="alert">
-                    </div>
-                <?php endif; ?>
             </div>
         </div>
     </div>
-
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="<?= BASE_URL ?>bootstrap/js/bootstrap.bundle.min.js"></script>

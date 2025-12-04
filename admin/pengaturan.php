@@ -2,6 +2,12 @@
 <?php
 include '../database/database.php';
 include '../config.php';
+
+// --- SECURITY: Session Config ---
+session_set_cookie_params([
+    'httponly' => true,
+    'samesite' => 'Strict'
+]);
 session_start();
 
 if (!isset($_SESSION['status']) || $_SESSION['status'] != "login") {
@@ -12,27 +18,38 @@ if (!isset($_SESSION['status']) || $_SESSION['status'] != "login") {
 $message = '';
 $alertType = 'success';
 
+// Menangani pesan dari proses CRUD
 if (isset($_GET['pesan'])) {
     switch ($_GET['pesan']) {
-        case 'sukses_edit': $message = '✏️ Data berhasil diperbarui.'; break;
-        case 'gagal': 
-            $alertType = 'danger'; 
-            $message = '❌ Terjadi kesalahan.'; 
+        case 'sukses_tambah':
+            $message = '✅ Data berhasil ditambahkan.';
+            break;
+        case 'sukses_edit':
+            $message = '✏️ Data berhasil diperbarui.';
+            break;
+        case 'sukses_hapus':
+            $message = '🗑️ Data berhasil dihapus.';
+            break;
+        case 'gagal':
+            $alertType = 'danger';
+            $message = '❌ Terjadi kesalahan.';
             if (isset($_GET['error_msg'])) $message .= ' Detail: ' . htmlspecialchars($_GET['error_msg']);
             break;
     }
 }
 ?>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Pengaturan Parameter & Metode</title>
+    <title>Pengaturan Parameter</title>
     <link href="<?= BASE_URL ?>bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" type="text/css" href="<?= BASE_URL ?>datatables/datatables.css" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
 </head>
+
 <body>
     <div class="d-flex" id="wrapper">
         <div class="sidebar p-2" id="sidebar-wrapper">
@@ -62,27 +79,33 @@ if (isset($_GET['pesan'])) {
 
                 <ul class="nav nav-tabs" id="myTab" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active fw-bold" id="fisika-tab" data-bs-toggle="tab" data-bs-target="#fisika-pane" type="button" role="tab"><i class="fas fa-atom me-2"></i>Parameter Fisika & Kimia</button>
+                        <button class="nav-link active fw-bold" id="fisika-tab" data-bs-toggle="tab" data-bs-target="#fisika-pane" type="button" role="tab"><i class="fas fa-atom me-2"></i>Fisika & Kimia</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link fw-bold" id="bakteri-tab" data-bs-toggle="tab" data-bs-target="#bakteri-pane" type="button" role="tab"><i class="fas fa-bacterium me-2"></i>Parameter Mikrobiologi</button>
+                        <button class="nav-link fw-bold" id="bakteri-tab" data-bs-toggle="tab" data-bs-target="#bakteri-pane" type="button" role="tab"><i class="fas fa-bacterium me-2"></i>Mikrobiologi</button>
                     </li>
                 </ul>
 
-                <div class="tab-content border border-top-0 p-3 bg-white shadow-sm" id="myTabContent">
-                    
+                <div class="tab-content border border-top-0 p-3 bg-white shadow-sm rounded-bottom" id="myTabContent">
+
                     <div class="tab-pane fade show active" id="fisika-pane" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="text-primary mb-0">Daftar Parameter Fisika & Kimia</h5>
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalTambahFisika">
+                                <i class="fas fa-plus"></i> Tambah Parameter
+                            </button>
+                        </div>
                         <div class="table-responsive">
-                            <table id="tabel-fisika" class="table table-striped table-bordered" style="width:100%">
-                                <thead class="table-primary">
+                            <table id="tabel-fisika" class="table table-striped table-bordered table-hover align-middle" style="width:100%">
+                                <thead class="table-primary text-center">
                                     <tr>
-                                        <th>No</th>
+                                        <th width="5%">No</th>
                                         <th>Parameter</th>
                                         <th>Satuan</th>
                                         <th>Kadar Maks</th>
                                         <th>Metode Uji</th>
                                         <th>Kategori</th>
-                                        <th>Aksi</th>
+                                        <th width="15%">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -91,14 +114,14 @@ if (isset($_GET['pesan'])) {
                                     $q_fisika = mysqli_query($con, "SELECT * FROM parameter_uji ORDER BY kategori ASC, nama_parameter ASC");
                                     while ($rf = mysqli_fetch_assoc($q_fisika)) { ?>
                                         <tr>
-                                            <td><?= $no++; ?></td>
+                                            <td class="text-center"><?= $no++; ?></td>
                                             <td><?= htmlspecialchars($rf['nama_parameter']); ?></td>
-                                            <td><?= htmlspecialchars($rf['satuan']); ?></td>
-                                            <td><?= htmlspecialchars($rf['kadar_maksimum']); ?></td>
+                                            <td class="text-center"><?= htmlspecialchars($rf['satuan']); ?></td>
+                                            <td class="text-center"><?= htmlspecialchars($rf['kadar_maksimum']); ?></td>
                                             <td><?= htmlspecialchars($rf['metode_uji']); ?></td>
-                                            <td><?= htmlspecialchars($rf['kategori']); ?></td>
-                                            <td>
-                                                <button class="btn btn-warning btn-sm text-white btn-edit-fisika" 
+                                            <td class="text-center"><span class="badge bg-secondary"><?= htmlspecialchars($rf['kategori']); ?></span></td>
+                                            <td class="text-center">
+                                                <button class="btn btn-warning btn-sm text-white btn-edit-fisika mb-1"
                                                     data-bs-toggle="modal" data-bs-target="#modalEditFisika"
                                                     data-id="<?= $rf['id_parameter']; ?>"
                                                     data-nama="<?= htmlspecialchars($rf['nama_parameter']); ?>"
@@ -106,7 +129,14 @@ if (isset($_GET['pesan'])) {
                                                     data-kadar="<?= htmlspecialchars($rf['kadar_maksimum']); ?>"
                                                     data-metode="<?= htmlspecialchars($rf['metode_uji']); ?>"
                                                     data-kategori="<?= htmlspecialchars($rf['kategori']); ?>">
-                                                    <i class="fa fa-edit"></i> Edit
+                                                    <i class="fa fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-danger btn-sm mb-1 btn-hapus"
+                                                    data-bs-toggle="modal" data-bs-target="#modalHapus"
+                                                    data-id="<?= $rf['id_parameter']; ?>"
+                                                    data-tipe="fisika"
+                                                    data-nama="<?= htmlspecialchars($rf['nama_parameter']); ?>">
+                                                    <i class="fa fa-trash"></i>
                                                 </button>
                                             </td>
                                         </tr>
@@ -117,16 +147,22 @@ if (isset($_GET['pesan'])) {
                     </div>
 
                     <div class="tab-pane fade" id="bakteri-pane" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="text-success mb-0">Daftar Parameter Mikrobiologi</h5>
+                            <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalTambahBakteri">
+                                <i class="fas fa-plus"></i> Tambah Parameter
+                            </button>
+                        </div>
                         <div class="table-responsive">
-                            <table id="tabel-bakteri" class="table table-striped table-bordered" style="width:100%">
-                                <thead class="table-success">
+                            <table id="tabel-bakteri" class="table table-striped table-bordered table-hover align-middle" style="width:100%">
+                                <thead class="table-success text-center">
                                     <tr>
-                                        <th>No</th>
+                                        <th width="5%">No</th>
                                         <th>Parameter</th>
                                         <th>Satuan</th>
                                         <th>Baku Mutu</th>
                                         <th>Metode Uji</th>
-                                        <th>Aksi</th>
+                                        <th width="15%">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -135,20 +171,27 @@ if (isset($_GET['pesan'])) {
                                     $q_bakteri = mysqli_query($con, "SELECT * FROM parameter_uji_bacteriology ORDER BY nama_parameter ASC");
                                     while ($rb = mysqli_fetch_assoc($q_bakteri)) { ?>
                                         <tr>
-                                            <td><?= $no++; ?></td>
+                                            <td class="text-center"><?= $no++; ?></td>
                                             <td><?= htmlspecialchars($rb['nama_parameter']); ?></td>
-                                            <td><?= htmlspecialchars($rb['satuan']); ?></td>
-                                            <td><?= htmlspecialchars($rb['nilai_baku_mutu']); ?></td>
+                                            <td class="text-center"><?= htmlspecialchars($rb['satuan']); ?></td>
+                                            <td class="text-center"><?= htmlspecialchars($rb['nilai_baku_mutu']); ?></td>
                                             <td><?= htmlspecialchars($rb['metode_uji']); ?></td>
-                                            <td>
-                                                <button class="btn btn-warning btn-sm text-white btn-edit-bakteri"
+                                            <td class="text-center">
+                                                <button class="btn btn-warning btn-sm text-white btn-edit-bakteri mb-1"
                                                     data-bs-toggle="modal" data-bs-target="#modalEditBakteri"
                                                     data-id="<?= $rb['id_parameter']; ?>"
                                                     data-nama="<?= htmlspecialchars($rb['nama_parameter']); ?>"
                                                     data-satuan="<?= htmlspecialchars($rb['satuan']); ?>"
                                                     data-baku="<?= htmlspecialchars($rb['nilai_baku_mutu']); ?>"
                                                     data-metode="<?= htmlspecialchars($rb['metode_uji']); ?>">
-                                                    <i class="fa fa-edit"></i> Edit
+                                                    <i class="fa fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-danger btn-sm mb-1 btn-hapus"
+                                                    data-bs-toggle="modal" data-bs-target="#modalHapus"
+                                                    data-id="<?= $rb['id_parameter']; ?>"
+                                                    data-tipe="bakteri"
+                                                    data-nama="<?= htmlspecialchars($rb['nama_parameter']); ?>">
+                                                    <i class="fa fa-trash"></i>
                                                 </button>
                                             </td>
                                         </tr>
@@ -157,39 +200,62 @@ if (isset($_GET['pesan'])) {
                             </table>
                         </div>
                     </div>
-                </div> 
+                </div>
             </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalTambahFisika" tabindex="-1">
+        <div class="modal-dialog">
+            <form action="proses_tambah_parameter_fisika.php" method="POST">
+                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">Tambah Parameter Fisika/Kimia</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3"><label>Nama Parameter</label><input type="text" name="nama_parameter" class="form-control" required></div>
+                        <div class="row mb-3">
+                            <div class="col"><label>Satuan</label><input type="text" name="satuan" class="form-control"></div>
+                            <div class="col"><label>Kadar Maksimum</label><input type="text" name="kadar_maksimum" class="form-control"></div>
+                        </div>
+                        <div class="mb-3"><label>Metode Uji</label><input type="text" name="metode_uji" class="form-control"></div>
+                        <div class="mb-3">
+                            <label>Kategori</label>
+                            <select name="kategori" class="form-select" required>
+                                <option value="Fisika">Fisika</option>
+                                <option value="Kimia">Kimia</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary">Simpan</button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 
     <div class="modal fade" id="modalEditFisika" tabindex="-1">
         <div class="modal-dialog">
             <form action="proses_edit_parameter_fisika.php" method="POST">
+                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                <input type="hidden" name="id_parameter" id="edit_id_fisika">
                 <div class="modal-content">
-                    <div class="modal-header bg-warning text-white"><h5 class="modal-title">Edit Parameter Fisika/Kimia</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                    <div class="modal-header bg-warning text-white">
+                        <h5 class="modal-title">Edit Parameter Fisika/Kimia</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
                     <div class="modal-body">
-                        <input type="hidden" name="id_parameter" id="edit_id_fisika">
-                        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
-                        
-                        <div class="mb-2">
-                            <label>Nama Parameter</label>
-                            <input type="text" name="nama_parameter" id="edit_nama_fisika" class="form-control" required>
+                        <div class="mb-3"><label>Nama Parameter</label><input type="text" name="nama_parameter" id="edit_nama_fisika" class="form-control" required></div>
+                        <div class="row mb-3">
+                            <div class="col"><label>Satuan</label><input type="text" name="satuan" id="edit_satuan_fisika" class="form-control"></div>
+                            <div class="col"><label>Kadar Maksimum</label><input type="text" name="kadar_maksimum" id="edit_kadar_fisika" class="form-control"></div>
                         </div>
-                        <div class="row mb-2">
-                            <div class="col">
-                                <label>Satuan</label>
-                                <input type="text" name="satuan" id="edit_satuan_fisika" class="form-control">
-                            </div>
-                            <div class="col">
-                                <label>Kadar Maksimum</label>
-                                <input type="text" name="kadar_maksimum" id="edit_kadar_fisika" class="form-control">
-                            </div>
-                        </div>
-                        <div class="mb-2">
-                            <label>Metode Uji</label>
-                            <input type="text" name="metode_uji" id="edit_metode_fisika" class="form-control">
-                        </div>
-                        <div class="mb-2">
+                        <div class="mb-3"><label>Metode Uji</label><input type="text" name="metode_uji" id="edit_metode_fisika" class="form-control"></div>
+                        <div class="mb-3">
                             <label>Kategori</label>
                             <select name="kategori" id="edit_kategori_fisika" class="form-select" required>
                                 <option value="Fisika">Fisika</option>
@@ -197,7 +263,36 @@ if (isset($_GET['pesan'])) {
                             </select>
                         </div>
                     </div>
-                    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-warning text-white">Update</button></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-warning text-white">Update</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalTambahBakteri" tabindex="-1">
+        <div class="modal-dialog">
+            <form action="proses_tambah_parameter_bakteri.php" method="POST">
+                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                <div class="modal-content">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title">Tambah Parameter Mikrobiologi</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3"><label>Nama Parameter</label><input type="text" name="nama_parameter" class="form-control" required></div>
+                        <div class="row mb-3">
+                            <div class="col"><label>Satuan</label><input type="text" name="satuan" class="form-control"></div>
+                            <div class="col"><label>Nilai Baku Mutu</label><input type="text" name="nilai_baku_mutu" class="form-control"></div>
+                        </div>
+                        <div class="mb-3"><label>Metode Uji</label><input type="text" name="metode_uji" class="form-control"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-success">Simpan</button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -206,32 +301,49 @@ if (isset($_GET['pesan'])) {
     <div class="modal fade" id="modalEditBakteri" tabindex="-1">
         <div class="modal-dialog">
             <form action="proses_edit_parameter_bakteri.php" method="POST">
+                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                <input type="hidden" name="id_parameter" id="edit_id_bakteri">
                 <div class="modal-content">
-                    <div class="modal-header bg-warning text-white"><h5 class="modal-title">Edit Parameter Mikrobiologi</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                    <div class="modal-body">
-                        <input type="hidden" name="id_parameter" id="edit_id_bakteri">
-                        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
-                        
-                        <div class="mb-2">
-                            <label>Nama Parameter</label>
-                            <input type="text" name="nama_parameter" id="edit_nama_bakteri" class="form-control" required>
-                        </div>
-                        <div class="row mb-2">
-                            <div class="col">
-                                <label>Satuan</label>
-                                <input type="text" name="satuan" id="edit_satuan_bakteri" class="form-control">
-                            </div>
-                            <div class="col">
-                                <label>Nilai Baku Mutu</label>
-                                <input type="text" name="nilai_baku_mutu" id="edit_baku_bakteri" class="form-control">
-                            </div>
-                        </div>
-                        <div class="mb-2">
-                            <label>Metode Uji</label>
-                            <input type="text" name="metode_uji" id="edit_metode_bakteri" class="form-control">
-                        </div>
+                    <div class="modal-header bg-warning text-white">
+                        <h5 class="modal-title">Edit Parameter Mikrobiologi</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-warning text-white">Update</button></div>
+                    <div class="modal-body">
+                        <div class="mb-3"><label>Nama Parameter</label><input type="text" name="nama_parameter" id="edit_nama_bakteri" class="form-control" required></div>
+                        <div class="row mb-3">
+                            <div class="col"><label>Satuan</label><input type="text" name="satuan" id="edit_satuan_bakteri" class="form-control"></div>
+                            <div class="col"><label>Nilai Baku Mutu</label><input type="text" name="nilai_baku_mutu" id="edit_baku_bakteri" class="form-control"></div>
+                        </div>
+                        <div class="mb-3"><label>Metode Uji</label><input type="text" name="metode_uji" id="edit_metode_bakteri" class="form-control"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-warning text-white">Update</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalHapus" tabindex="-1">
+        <div class="modal-dialog">
+            <form action="proses_hapus_parameter.php" method="POST">
+                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                <input type="hidden" name="id_parameter" id="hapus_id_parameter">
+                <input type="hidden" name="tipe_parameter" id="hapus_tipe_parameter">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">Konfirmasi Hapus</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Apakah Anda yakin ingin menghapus parameter: <strong id="hapus_nama_parameter"></strong>?</p>
+                        <small class="text-danger">Tindakan ini tidak dapat dibatalkan.</small>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-danger">Hapus</button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -241,23 +353,43 @@ if (isset($_GET['pesan'])) {
     <script src="<?= BASE_URL ?>bootstrap/js/bootstrap.bundle.min.js"></script>
     <script type="text/javascript" src="<?= BASE_URL ?>datatables/datatables.js"></script>
     <script>
+        // Alert Auto Close
         window.addEventListener('DOMContentLoaded', () => {
             const alertEl = document.getElementById('alertNotifikasi');
             if (alertEl) {
-                setTimeout(() => { const bsAlert = new bootstrap.Alert(alertEl); bsAlert.close(); }, 2000);
-                if (window.history.replaceState) {
-                    const url = new URL(window.location); url.searchParams.delete('pesan'); window.history.replaceState({}, document.title, url);
-                }
+                setTimeout(() => {
+                    const bsAlert = new bootstrap.Alert(alertEl);
+                    bsAlert.close();
+                }, 3000);
+                // Bersihkan URL
+                const url = new URL(window.location);
+                url.searchParams.delete('pesan');
+                url.searchParams.delete('error_msg');
+                window.history.replaceState({}, document.title, url);
             }
         });
 
         $(document).ready(function() {
-            $('#tabel-fisika').DataTable();
-            $('#tabel-bakteri').DataTable();
-            $("#menu-toggle").click(function(e) { e.preventDefault(); $("#wrapper").toggleClass("toggled"); });
+            // Init Datatables
+            $('#tabel-fisika').DataTable({
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.13.4/i18n/id.json"
+                }
+            });
+            $('#tabel-bakteri').DataTable({
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.13.4/i18n/id.json"
+                }
+            });
 
-            // Isi Modal Edit Fisika
-            $('.btn-edit-fisika').click(function() {
+            // Toggle Sidebar
+            $("#menu-toggle").click(function(e) {
+                e.preventDefault();
+                $("#wrapper").toggleClass("toggled");
+            });
+
+            // Handler Edit Fisika
+            $('#tabel-fisika').on('click', '.btn-edit-fisika', function() {
                 $('#edit_id_fisika').val($(this).data('id'));
                 $('#edit_nama_fisika').val($(this).data('nama'));
                 $('#edit_satuan_fisika').val($(this).data('satuan'));
@@ -266,15 +398,23 @@ if (isset($_GET['pesan'])) {
                 $('#edit_kategori_fisika').val($(this).data('kategori'));
             });
 
-            // Isi Modal Edit Bakteri
-            $('.btn-edit-bakteri').click(function() {
+            // Handler Edit Bakteri
+            $('#tabel-bakteri').on('click', '.btn-edit-bakteri', function() {
                 $('#edit_id_bakteri').val($(this).data('id'));
                 $('#edit_nama_bakteri').val($(this).data('nama'));
                 $('#edit_satuan_bakteri').val($(this).data('satuan'));
                 $('#edit_baku_bakteri').val($(this).data('baku'));
                 $('#edit_metode_bakteri').val($(this).data('metode'));
             });
+
+            // Handler Hapus (Generic)
+            $(document).on('click', '.btn-hapus', function() {
+                $('#hapus_id_parameter').val($(this).data('id'));
+                $('#hapus_tipe_parameter').val($(this).data('tipe')); // 'fisika' atau 'bakteri'
+                $('#hapus_nama_parameter').text($(this).data('nama'));
+            });
         });
     </script>
 </body>
+
 </html>

@@ -1,6 +1,9 @@
 <?php
 include '../database/database.php';
 include '../config.php';
+
+// --- 1. SECURITY: Session Config ---
+session_set_cookie_params(['httponly' => true, 'samesite' => 'Strict']);
 session_start();
 
 if (!isset($_SESSION['status']) || $_SESSION['status'] != "login") {
@@ -8,12 +11,11 @@ if (!isset($_SESSION['status']) || $_SESSION['status'] != "login") {
     exit();
 }
 
-// Cek jenis laporan yang dipilih dari URL
+// --- 2. INPUT HANDLING ---
 $jenis_laporan = isset($_GET['jenis']) ? $_GET['jenis'] : null;
-
-// Persiapkan variabel-variabel umum
 $bulan = isset($_GET['bulan']) ? (int)$_GET['bulan'] : date('n');
 $tahun = isset($_GET['tahun']) ? (int)$_GET['tahun'] : date('Y');
+
 $nama_bulan = [
     1 => 'Januari',
     2 => 'Februari',
@@ -29,73 +31,105 @@ $nama_bulan = [
     12 => 'Desember'
 ];
 
-// --- LOGIKA QUERY BERDASARKAN JENIS LAPORAN ---
+// --- 3. KONFIGURASI DINAMIS (Mapping Kolom & SQL) ---
+$reportConfig = [];
+$result = null;
 
-if ($jenis_laporan === 'fisika') {
-    $sql = "
-        SELECT
-            m.wilayah, m.no_analisa, m.alamat AS sampel, m.tanggal_pengujian,
-            MAX(CASE WHEN h.nama_parameter = 'Suhu' THEN h.hasil END) AS suhu,
-            MAX(CASE WHEN h.nama_parameter = 'Total Dissolve Solid' THEN h.hasil END) AS tds,
-            MAX(CASE WHEN h.nama_parameter = 'Kekeruhan' THEN h.hasil END) AS kekeruhan,
-            MAX(CASE WHEN h.nama_parameter = 'Warna' THEN h.hasil END) AS warna,
-            MAX(CASE WHEN h.nama_parameter = 'Bau' THEN h.hasil END) AS bau
-        FROM master_hasil_uji m
-        JOIN hasil_uji h ON m.id_m_hasil_uji = h.id_m_hasil_uji
-        WHERE MONTH(m.tanggal_pengujian) = ? AND YEAR(m.tanggal_pengujian) = ?
-        GROUP BY m.id_m_hasil_uji
-        ORDER BY m.wilayah, m.tanggal_pengujian, m.id_m_hasil_uji;
-    ";
-    $stmt = $con->prepare($sql);
-    $stmt->bind_param("ii", $bulan, $tahun);
-    $stmt->execute();
-    $result = $stmt->get_result();
-} elseif ($jenis_laporan === 'kimia') {
-    $sql = "
-        SELECT
-            m.wilayah, m.no_analisa, m.alamat AS sampel, m.tanggal_pengujian,
-            MAX(CASE WHEN h.nama_parameter = 'pH' THEN h.hasil END) AS ph,
-            MAX(CASE WHEN h.nama_parameter = 'Besi (Fe)' THEN h.hasil END) AS fe,
-            MAX(CASE WHEN h.nama_parameter = 'Mangan (Mn)' THEN h.hasil END) AS mn,
-            MAX(CASE WHEN h.nama_parameter = 'Nitrit (NO₂⁻) terlarut' THEN h.hasil END) AS nitrit,
-            MAX(CASE WHEN h.nama_parameter = 'Nitrat (NO₃⁻) terlarut' THEN h.hasil END) AS nitrat,
-            MAX(CASE WHEN h.nama_parameter = 'Kromium Valensi 6 (Cr⁶⁺) terlarut' THEN h.hasil END) AS cr,
-            MAX(CASE WHEN h.nama_parameter = 'Kadmium (Cd) terlarut' THEN h.hasil END) AS cd,
-            MAX(CASE WHEN h.nama_parameter = 'Arsen (As) terlarut' THEN h.hasil END) AS arsen,
-            MAX(CASE WHEN h.nama_parameter = 'Timbal (Pb) terlarut' THEN h.hasil END) AS pb,
-            MAX(CASE WHEN h.nama_parameter = 'Fluoride (F) terlarut' THEN h.hasil END) AS fluoride,
-            MAX(CASE WHEN h.nama_parameter = 'Aluminium (Al) terlarut' THEN h.hasil END) AS al,
-            MAX(CASE WHEN h.nama_parameter = 'Sisa Khlor' THEN h.hasil END) AS sisa_khlor
-        FROM master_hasil_uji m
-        JOIN hasil_uji h ON m.id_m_hasil_uji = h.id_m_hasil_uji
-        WHERE MONTH(m.tanggal_pengujian) = ? AND YEAR(m.tanggal_pengujian) = ?
-        GROUP BY m.id_m_hasil_uji
-        ORDER BY m.wilayah, m.tanggal_pengujian, m.id_m_hasil_uji;
-    ";
-    $stmt = $con->prepare($sql);
-    $stmt->bind_param("ii", $bulan, $tahun);
-    $stmt->execute();
-    $result = $stmt->get_result();
-} elseif ($jenis_laporan === 'mikrobiologi') {
-    $sql = "SELECT
-            m.wilayah, m.no_analisa, m.alamat AS sampel, m.tanggal_pengujian,
-            MAX(CASE WHEN h.nama_parameter = 'Tes Coliform' THEN h.hasil END) AS tes_coliform,
-            MAX(CASE WHEN h.nama_parameter = 'Tes Coli Tinja' THEN h.hasil END) AS tes_ecoli,
-            MAX(CASE WHEN h.nama_parameter = 'pH' THEN h.hasil END) AS ph,
-            MAX(CASE WHEN h.nama_parameter = 'Sisa Chlor' THEN h.hasil END) AS sisa_khlor,
-            MAX(CASE WHEN h.nama_parameter = 'Tes Coliform' THEN h.penegasan END) AS tes_coliform_penegasan
-        FROM master_hasil_uji_bacteriology m
-        JOIN hasil_uji_bacteriology h ON m.id_m_hasil_uji = h.id_m_hasil_uji
-        WHERE MONTH(m.tanggal_pengujian) = ? AND YEAR(m.tanggal_pengujian) = ?
-        GROUP BY m.id_m_hasil_uji
-        ORDER BY m.wilayah, m.tanggal_pengujian, m.id_m_hasil_uji;
-    ";
-    $stmt = $con->prepare($sql);
-    $stmt->bind_param("ii", $bulan, $tahun);
-    $stmt->execute();
-    $result = $stmt->get_result();
+if ($jenis_laporan) {
+    if ($jenis_laporan === 'fisika') {
+        $reportConfig = [
+            'title' => 'Laporan Uji Fisika',
+            'icon'  => 'fas fa-wind',
+            'color' => 'info',
+            // Definisi Kolom: 'Key Database' => 'Label Header'
+            'columns' => [
+                'suhu' => 'Suhu (°C)',
+                'tds' => 'TDS (mg/l)',
+                'kekeruhan' => 'Kekeruhan (NTU)',
+                'warna' => 'Warna (TCU)',
+                'bau' => 'Bau'
+            ]
+        ];
+        // Query Fisika
+        $sql = "SELECT m.wilayah, m.no_analisa, m.alamat AS sampel, m.tanggal_pengujian,
+                MAX(CASE WHEN h.nama_parameter = 'Suhu' THEN h.hasil END) AS suhu,
+                MAX(CASE WHEN h.nama_parameter = 'Total Dissolve Solid' THEN h.hasil END) AS tds,
+                MAX(CASE WHEN h.nama_parameter = 'Kekeruhan' THEN h.hasil END) AS kekeruhan,
+                MAX(CASE WHEN h.nama_parameter = 'Warna' THEN h.hasil END) AS warna,
+                MAX(CASE WHEN h.nama_parameter = 'Bau' THEN h.hasil END) AS bau
+                FROM master_hasil_uji m JOIN hasil_uji h ON m.id_m_hasil_uji = h.id_m_hasil_uji
+                WHERE MONTH(m.tanggal_pengujian) = ? AND YEAR(m.tanggal_pengujian) = ?
+                GROUP BY m.id_m_hasil_uji ORDER BY m.wilayah, m.tanggal_pengujian, m.id_m_hasil_uji";
+    } elseif ($jenis_laporan === 'kimia') {
+        $reportConfig = [
+            'title' => 'Laporan Uji Kimia',
+            'icon'  => 'fas fa-atom',
+            'color' => 'warning',
+            'columns' => [
+                'ph' => 'pH',
+                'fe' => 'Besi (Fe)',
+                'mn' => 'Mangan (Mn)',
+                'nitrit' => 'Nitrit (NO₂⁻)',
+                'nitrat' => 'Nitrat (NO₃⁻)',
+                'cr' => 'Kromium (Cr⁶⁺)',
+                'cd' => 'Kadmium (Cd)',
+                'arsen' => 'Arsen (As)',
+                'pb' => 'Timbal (Pb)',
+                'fluoride' => 'Fluoride (F)',
+                'al' => 'Aluminium (Al)',
+                'sisa_khlor' => 'Sisa Khlor'
+            ]
+        ];
+        // Query Kimia
+        $sql = "SELECT m.wilayah, m.no_analisa, m.alamat AS sampel, m.tanggal_pengujian,
+                MAX(CASE WHEN h.nama_parameter = 'pH' THEN h.hasil END) AS ph,
+                MAX(CASE WHEN h.nama_parameter = 'Besi (Fe)' THEN h.hasil END) AS fe,
+                MAX(CASE WHEN h.nama_parameter = 'Mangan (Mn)' THEN h.hasil END) AS mn,
+                MAX(CASE WHEN h.nama_parameter = 'Nitrit (NO₂⁻) terlarut' THEN h.hasil END) AS nitrit,
+                MAX(CASE WHEN h.nama_parameter = 'Nitrat (NO₃⁻) terlarut' THEN h.hasil END) AS nitrat,
+                MAX(CASE WHEN h.nama_parameter = 'Kromium Valensi 6 (Cr⁶⁺) terlarut' THEN h.hasil END) AS cr,
+                MAX(CASE WHEN h.nama_parameter = 'Kadmium (Cd) terlarut' THEN h.hasil END) AS cd,
+                MAX(CASE WHEN h.nama_parameter = 'Arsen (As) terlarut' THEN h.hasil END) AS arsen,
+                MAX(CASE WHEN h.nama_parameter = 'Timbal (Pb) terlarut' THEN h.hasil END) AS pb,
+                MAX(CASE WHEN h.nama_parameter = 'Fluoride (F) terlarut' THEN h.hasil END) AS fluoride,
+                MAX(CASE WHEN h.nama_parameter = 'Aluminium (Al) terlarut' THEN h.hasil END) AS al,
+                MAX(CASE WHEN h.nama_parameter = 'Sisa Khlor' THEN h.hasil END) AS sisa_khlor
+                FROM master_hasil_uji m JOIN hasil_uji h ON m.id_m_hasil_uji = h.id_m_hasil_uji
+                WHERE MONTH(m.tanggal_pengujian) = ? AND YEAR(m.tanggal_pengujian) = ?
+                GROUP BY m.id_m_hasil_uji ORDER BY m.wilayah, m.tanggal_pengujian, m.id_m_hasil_uji";
+    } elseif ($jenis_laporan === 'mikrobiologi') {
+        $reportConfig = [
+            'title' => 'Laporan Uji Mikrobiologi',
+            'icon'  => 'fas fa-flask',
+            'color' => 'success',
+            'columns' => [
+                'tes_coliform' => 'Coliform',
+                'tes_coliform_penegasan' => 'Penegasan',
+                'tes_ecoli' => 'Coli Tinja',
+                'ph' => 'pH',
+                'sisa_khlor' => 'Sisa Khlor'
+            ]
+        ];
+        // Query Mikrobiologi
+        $sql = "SELECT m.wilayah, m.no_analisa, m.alamat AS sampel, m.tanggal_pengujian,
+                MAX(CASE WHEN h.nama_parameter = 'Tes Coliform' THEN h.hasil END) AS tes_coliform,
+                MAX(CASE WHEN h.nama_parameter = 'Tes Coli Tinja' THEN h.hasil END) AS tes_ecoli,
+                MAX(CASE WHEN h.nama_parameter = 'pH' THEN h.hasil END) AS ph,
+                MAX(CASE WHEN h.nama_parameter = 'Sisa Chlor' THEN h.hasil END) AS sisa_khlor,
+                MAX(CASE WHEN h.nama_parameter = 'Tes Coliform' THEN h.penegasan END) AS tes_coliform_penegasan
+                FROM master_hasil_uji_bacteriology m JOIN hasil_uji_bacteriology h ON m.id_m_hasil_uji = h.id_m_hasil_uji
+                WHERE MONTH(m.tanggal_pengujian) = ? AND YEAR(m.tanggal_pengujian) = ?
+                GROUP BY m.id_m_hasil_uji ORDER BY m.wilayah, m.tanggal_pengujian, m.id_m_hasil_uji";
+    }
+
+    // Eksekusi Query
+    if (isset($sql)) {
+        $stmt = $con->prepare($sql);
+        $stmt->bind_param("ii", $bulan, $tahun);
+        $stmt->execute();
+        $result = $stmt->get_result();
+    }
 }
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -139,12 +173,11 @@ if ($jenis_laporan === 'fisika') {
         <div class="flex-grow-1" id="page-content-wrapper">
             <div class="dashboard-header">
                 <button class="btn btn-primary navbar-toggler-custom" id="menu-toggle"><span class="fas fa-bars"></span></button>
-                <h4 class="mb-0">Laporan Hasil penerimaan</h4>
+                <h4 class="mb-0">Laporan Hasil Uji</h4>
                 <a href="<?= BASE_URL ?>logout/logout.php" class="btn btn-outline-danger d-none d-md-block">Log Out</a>
             </div>
 
             <div class="content-fluid mt-3">
-
                 <?php if ($jenis_laporan == null): ?>
                     <div class="card shadow-sm">
                         <div class="card-header">
@@ -242,7 +275,6 @@ if ($jenis_laporan === 'fisika') {
                             <hr>
                             <h4 class="text-center mt-4">Hasil Pemeriksaan Parameter Kimia Air</h4>
                             <h5 class="text-center text-muted mb-4">Bulan: <?= htmlspecialchars($nama_bulan[$bulan]) . ' ' . htmlspecialchars($tahun); ?></h5>
-
                             <div class="table-responsive">
                                 <table class="table table-bordered table-hover table-laporan" style="font-size: 0.9rem;">
                                     <thead class="table-dark">
@@ -338,7 +370,6 @@ if ($jenis_laporan === 'fisika') {
                                             <th class="text-center">Tes Coli Tinja</th>
                                             <th class="text-center">pH</th>
                                             <th class="text-center">Sisa Khlor</th>
-
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -356,9 +387,6 @@ if ($jenis_laporan === 'fisika') {
                                                     <td><?= htmlspecialchars($row['tes_ecoli']); ?></td>
                                                     <td><?= htmlspecialchars($row['ph']); ?></td>
                                                     <td><?= htmlspecialchars($row['sisa_khlor']); ?></td>
-
-                                                    <!--masih kurang penegasan-->
-
                                                 </tr><?php endwhile;
                                                 else: ?><tr>
                                                 <td colspan="9" class="text-center">Tidak ada data untuk periode yang dipilih.</td>
@@ -368,7 +396,6 @@ if ($jenis_laporan === 'fisika') {
                             </div>
                         </div>
                     </div>
-
                 <?php endif; ?>
                 <?php if (isset($stmt)) $stmt->close();
                 $con->close(); ?>

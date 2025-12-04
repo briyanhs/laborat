@@ -1,37 +1,55 @@
 <?php
 // admin/proses_tambah_bacteriology.php
+
 include '../database/database.php';
 include '../config.php';
+
+// Konfigurasi Session Aman
+session_set_cookie_params([
+    'httponly' => true,
+    'samesite' => 'Strict'
+]);
 session_start();
 
-// 1. Cek CSRF Token
+// 1. Cek Login
+if (!isset($_SESSION['status']) || $_SESSION['status'] != "login") {
+    header("location:../index.php?pesan=belum_login");
+    exit();
+}
+
+// 2. Cek CSRF Token
 if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-    die("Token CSRF tidak valid! Akses ditolak.");
+    die("Akses Ditolak: Token CSRF tidak valid.");
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Ambil data master
-    $nama_pelanggan = $_POST['nama_pelanggan'];
-    $alamat = $_POST['alamat'];
-    $status_pelanggan = $_POST['status_pelanggan'];
-    $jenis_sampel = $_POST['jenis_sampel'];
-    $jenis_pengujian = $_POST['jenis_pengujian'];
-    $keterangan_sampel = $_POST['keterangan_sampel'];
-    $nama_pengirim = $_POST['nama_pengirim'];
-    $no_analisa = $_POST['no_analisa'];
-    $wilayah = $_POST['wilayah'];
-    $tanggal_pengambilan = $_POST['tanggal_pengambilan'];
-    $tanggal_pengiriman = $_POST['tanggal_pengiriman'];
-    $tanggal_penerimaan = $_POST['tanggal_penerimaan'];
-    $tanggal_pengujian = $_POST['tanggal_pengujian'];
-    $status_global = $_POST['status']; // Status global (Proses/Selesai)
+    
+    // --- AMBIL DATA MASTER ---
+    // Gunakan null coalescing operator (??) untuk menghindari error undefined index
+    $nama_pelanggan    = $_POST['nama_pelanggan'] ?? '';
+    $alamat            = $_POST['alamat'] ?? '';
+    $status_pelanggan  = $_POST['status_pelanggan'] ?? '';
+    $jenis_sampel      = $_POST['jenis_sampel'] ?? '';
+    $jenis_pengujian   = $_POST['jenis_pengujian'] ?? '';
+    $keterangan_sampel = $_POST['keterangan_sampel'] ?? '';
+    $nama_pengirim     = $_POST['nama_pengirim'] ?? '';
+    $no_analisa        = $_POST['no_analisa'] ?? '';
+    $wilayah           = $_POST['wilayah'] ?? '';
+    $status_global     = $_POST['status'] ?? 'Proses';
 
-    // Mulai transaksi
+    // --- HANDLING TANGGAL (Agar bisa NULL jika kosong) ---
+    $tanggal_pengambilan = !empty($_POST['tanggal_pengambilan']) ? $_POST['tanggal_pengambilan'] : NULL;
+    $tanggal_pengiriman  = !empty($_POST['tanggal_pengiriman']) ? $_POST['tanggal_pengiriman'] : NULL;
+    $tanggal_penerimaan  = !empty($_POST['tanggal_penerimaan']) ? $_POST['tanggal_penerimaan'] : NULL;
+    $tanggal_pengujian   = !empty($_POST['tanggal_pengujian']) ? $_POST['tanggal_pengujian'] : NULL;
+
+    // Mulai Transaksi Database
     mysqli_begin_transaction($con);
 
     try {
-        // 2. Insert ke tabel master (GUNAKAN PREPARED STATEMENT)
-        // Kolom ID auto-increment dan token NULL tidak perlu ditulis di VALUES jika kita sebutkan nama kolomnya
+        // ==========================================
+        // 1. INSERT DATA MASTER
+        // ==========================================
         $query_master = "INSERT INTO master_hasil_uji_bacteriology 
                         (nama_pelanggan, alamat, status_pelanggan, tanggal_pengambilan, tanggal_pengiriman, tanggal_penerimaan, tanggal_pengujian, nama_pengirim, jenis_sampel, jenis_pengujian, keterangan_sampel, no_analisa, wilayah, verification_token) 
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)";
@@ -64,33 +82,39 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             throw new Exception("Gagal eksekusi master: " . mysqli_stmt_error($stmt_master));
         }
 
-        // Ambil ID yang baru saja dibuat
+        // Ambil ID Master yang baru dibuat
         $id_m_hasil_uji = mysqli_insert_id($con);
         mysqli_stmt_close($stmt_master);
 
-        // 3. Proses Detail Parameter
+        // ==========================================
+        // 2. INSERT DETAIL PARAMETER
+        // ==========================================
         if (isset($_POST['hasil']) && is_array($_POST['hasil'])) {
-            $hasil_analisa = $_POST['hasil'];
-            $penegasan_list = $_POST['penegasan'] ?? [];
+            $hasil_analisa   = $_POST['hasil'];
+            $penegasan_list  = $_POST['penegasan'] ?? [];
             $keterangan_list = $_POST['keterangan'] ?? [];
-            $param_details = $_POST['param_details'] ?? []; // Data hidden (nama, satuan, baku mutu, metode)
+            $param_details   = $_POST['param_details'] ?? []; // Data hidden dari form
 
             $query_detail = "INSERT INTO hasil_uji_bacteriology 
                             (id_m_hasil_uji, nama_parameter, satuan, nilai_baku_mutu, metode_uji, hasil, penegasan, keterangan, status) 
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
             $stmt_detail = mysqli_prepare($con, $query_detail);
+            if (!$stmt_detail) {
+                throw new Exception("Gagal prepare detail: " . mysqli_error($con));
+            }
 
             foreach ($hasil_analisa as $id_param => $hasil) {
-                // Ambil detail parameter dari input hidden
-                $nama_parameter = $param_details[$id_param]['nama_parameter'] ?? '';
-                $satuan = $param_details[$id_param]['satuan'] ?? '';
+                // Ambil data dari hidden input berdasarkan ID Parameter
+                $nama_parameter  = $param_details[$id_param]['nama_parameter'] ?? '';
+                $satuan          = $param_details[$id_param]['satuan'] ?? '';
                 $nilai_baku_mutu = $param_details[$id_param]['nilai_baku_mutu'] ?? '';
-                $metode_uji = $param_details[$id_param]['metode_uji'] ?? '';
+                $metode_uji      = $param_details[$id_param]['metode_uji'] ?? '';
+                
+                $penegasan       = $penegasan_list[$id_param] ?? '';
+                $keterangan      = $keterangan_list[$id_param] ?? '';
 
-                $penegasan = $penegasan_list[$id_param] ?? '';
-                $keterangan = $keterangan_list[$id_param] ?? '';
-
+                // Bind param: integer (i) dan 8 string (s)
                 mysqli_stmt_bind_param(
                     $stmt_detail,
                     "issssssss",
@@ -106,21 +130,36 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 );
 
                 if (!mysqli_stmt_execute($stmt_detail)) {
-                    throw new Exception("Gagal simpan detail parameter ID: $id_param");
+                    throw new Exception("Gagal simpan detail parameter (ID Param: $id_param): " . mysqli_stmt_error($stmt_detail));
                 }
             }
             mysqli_stmt_close($stmt_detail);
         }
 
-        // Jika semua berhasil, commit transaksi
+        // Jika semua sukses, Commit
         mysqli_commit($con);
-        header("location:../bacteriology.php?pesan=sukses_tambah");
+        header("location:../admin/bacteriology.php?pesan=sukses_tambah");
+        exit();
+
     } catch (Exception $e) {
-        // Jika ada kesalahan, rollback transaksi
+        // Jika error, Rollback
         mysqli_rollback($con);
-        $error_msg = urlencode($e->getMessage());
-        header("location:../bacteriology.php?pesan=gagal&error_msg=" . $error_msg);
-    } finally {
-        mysqli_close($con);
+        
+        // Log error ke server
+        error_log("Error Tambah Bacteriology: " . $e->getMessage());
+        
+        // Redirect dengan pesan error
+        $error_msg = urlencode("Terjadi kesalahan saat menyimpan data.");
+        header("location:../admin/bacteriology.php?pesan=gagal&error_msg=" . $error_msg);
+        exit();
     }
+} else {
+    // Akses invalid
+    header("location:../admin/bacteriology.php");
+    exit();
 }
+
+if (isset($con)) {
+    mysqli_close($con);
+}
+?>

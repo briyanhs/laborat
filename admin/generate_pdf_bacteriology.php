@@ -1,33 +1,29 @@
 <?php
-// Include Dompdf Autoload
+// Pastikan tidak ada output (spasi/enter) sebelum tag PHP
 require_once '../vendor/autoload.php';
 include '../database/database.php';
 include '../config.php';
 
+// Set charset koneksi agar simbol khusus (mikro, derajat, dll) tampil benar
 mysqli_set_charset($con, "utf8mb4");
 
 use Dompdf\Dompdf;
 use Dompdf\Options;
-use Endroid\QrCode\Builder\Builder; // <--- PENTING UNTUK 'Builder::create()'
+use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\Writer\PngWriter;
-// Pastikan ID Master Hasil Uji diterima
+
+// --- 1. VALIDASI INPUT ---
 if (!isset($_GET['id_m_hasil_uji']) || !is_numeric($_GET['id_m_hasil_uji'])) {
-    die("ID Master Hasil Uji tidak valid.");
+    http_response_code(400); // Bad Request
+    die("Error: ID Master Hasil Uji tidak valid atau tidak ditemukan.");
 }
 
-$id_m_hasil_uji = $_GET['id_m_hasil_uji'];
+$id_m_hasil_uji = (int) $_GET['id_m_hasil_uji'];
 
-// --- Ambil Data Master Hasil Uji (Gunakan query Anda yang benar) ---
-$query_master = "SELECT m.*, u.nama as verifier_name 
-                 FROM master_hasil_uji_bacteriology m 
-                 LEFT JOIN user u ON m.verified_by_user_id = u.id_user
-                 WHERE m.id_m_hasil_uji = ?";
-// SAYA SALAH, INI SEHARUSNYA TIDAK ADA LAGI. 
-// Query master tidak perlu join user lagi.
+// --- 2. AMBIL DATA MASTER ---
 $query_master = "SELECT * FROM master_hasil_uji_bacteriology WHERE id_m_hasil_uji = ?";
-
 $stmt_master = mysqli_prepare($con, $query_master);
 mysqli_stmt_bind_param($stmt_master, "i", $id_m_hasil_uji);
 mysqli_stmt_execute($stmt_master);
@@ -35,14 +31,13 @@ $result_master = mysqli_stmt_get_result($stmt_master);
 $master_data = mysqli_fetch_assoc($result_master);
 
 if (!$master_data) {
-    die("Data Master Hasil Uji tidak ditemukan.");
+    http_response_code(404); // Not Found
+    die("Error: Data Laporan tidak ditemukan di database.");
 }
 
-// --- LOGIKA QR CODE DAN VERIFIKATOR BARU ---
-$qrCodeBase64 = '';
-$verifiers = []; // Ini akan menampung nama-nama verifikator
-
-// 1. Ambil daftar siapa saja yang sudah verifikasi
+// --- 3. LOGIKA VERIFIKATOR (TTD) ---
+// Mengambil daftar nama user yang sudah memverifikasi data ini di tabel log
+$verifiers = []; 
 $query_log = "
     SELECT u.nama 
     FROM log_verifikasi lv
@@ -53,17 +48,20 @@ $stmt_log = mysqli_prepare($con, $query_log);
 mysqli_stmt_bind_param($stmt_log, "i", $id_m_hasil_uji);
 mysqli_stmt_execute($stmt_log);
 $result_log = mysqli_stmt_get_result($stmt_log);
+
 while ($row = mysqli_fetch_assoc($result_log)) {
-    // Buat array seperti: ['Ratih Hastuti, S.Si' => true]
+    // Key array menggunakan nama agar mudah dicek di template (isset)
     $verifiers[$row['nama']] = true;
 }
 
-// 2. Jika ada token, buat QR Code-nya.
+// --- 4. GENERATE QR CODE ---
+$qrCodeBase64 = '';
 if (!empty($master_data['verification_token'])) {
-    // Generate URL publik
-    $verification_url = BASE_URL . 'public_verify.php?token=' . $master_data['verification_token'];
+    // URL yang akan dibuka saat QR di-scan
+    $verification_url = BASE_URL . 'public_verify.php?token=' . urlencode($master_data['verification_token']);
 
-    // Buat QR code (Sintaks Anda yang benar)
+    // Generate QR Code
+    // Margin jangan negatif, set ke 0 atau 2 agar scanner bisa membaca border
     $builder = new Builder(
         writer: new PngWriter(),
         data: ($verification_url),
@@ -75,9 +73,8 @@ if (!empty($master_data['verification_token'])) {
     $qrString = $result->getString();
     $qrCodeBase64 = 'data:image/png;base64,' . base64_encode($qrString);
 }
-// --- LOGIKA QR CODE SELESAI ---
 
-// --- Ambil Data Detail Parameter Hasil Uji ---
+// --- 5. AMBIL DETAIL PARAMETER HASIL UJI ---
 $query_detail = "
     SELECT
         id,
@@ -91,35 +88,45 @@ $query_detail = "
     FROM
         hasil_uji_bacteriology
     WHERE
-        id_m_hasil_uji = ?;
+        id_m_hasil_uji = ?
+    ORDER BY id ASC
 ";
 
 $stmt_detail = mysqli_prepare($con, $query_detail);
 mysqli_stmt_bind_param($stmt_detail, "i", $id_m_hasil_uji);
 mysqli_stmt_execute($stmt_detail);
 $result_detail = mysqli_stmt_get_result($stmt_detail);
+
 $detail_data = [];
 while ($row = mysqli_fetch_assoc($result_detail)) {
     $detail_data[] = $row;
 }
 
-// --- Inisialisasi Dompdf ---
+// Tutup koneksi database sebelum render PDF untuk menghemat resource
+mysqli_close($con);
+
+// --- 6. RENDER PDF MENGGUNAKAN DOMPDF ---
 $options = new Options();
 $options->set('isHtml5ParserEnabled', true);
-$options->set('isRemoteEnabled', true);
+$options->set('isRemoteEnabled', true); // Penting untuk memuat gambar/logo via URL
+$options->set('defaultFont', 'Helvetica');
+
 $dompdf = new Dompdf($options);
 
-// Menggunakan output buffering untuk menangkap output dari file template
+// Tangkap output HTML dari file template
 ob_start();
-include 'generate_template_bacteriology.php';
+// Variabel $master_data, $detail_data, $verifiers, $qrCodeBase64 akan dikirim ke template ini
+include 'generate_template_bacteriology.php'; 
 $html = ob_get_clean();
 
 $dompdf->loadHtml($html);
 
+// Set ukuran kertas F4 (Folio) atau A4
+// Ukuran F4 dalam point: 612.28 x 935.43 (kurang lebih 21.59cm x 33.02cm)
 $dompdf->setPaper(array(0, 0, 612.28, 935.43), 'portrait');
 
 $dompdf->render();
 
-$dompdf->stream("Laporan Hasil Uji Bakteriologi " . $master_data['no_analisa'] . ".pdf", array("Attachment" => FALSE));
-
-mysqli_close($con);
+// Stream PDF ke browser (Attachment => false agar terbuka di browser, true untuk download otomatis)
+$dompdf->stream("Laporan_Bakteriologi_" . preg_replace('/[^A-Za-z0-9\-]/', '_', $master_data['no_analisa']) . ".pdf", array("Attachment" => FALSE));
+?>
