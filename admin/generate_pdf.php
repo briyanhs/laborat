@@ -1,4 +1,6 @@
 <?php
+// admin/generate_pdf.php (Versi PHP 7.4 & Endroid QR v4)
+
 // Pastikan tidak ada spasi/enter sebelum tag PHP
 require_once '../vendor/autoload.php';
 include '../database/database.php';
@@ -11,7 +13,8 @@ use Dompdf\Dompdf;
 use Dompdf\Options;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Encoding\Encoding;
-use Endroid\QrCode\ErrorCorrectionLevel;
+// PERBAIKAN 1: Gunakan Class spesifik, bukan Enum (karena PHP 7.4 belum support Enum)
+use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh;
 use Endroid\QrCode\Writer\PngWriter;
 
 // --- 1. VALIDASI INPUT ---
@@ -37,7 +40,6 @@ if (!$master_data) {
 
 // --- 3. LOGIKA VERIFIKATOR (TTD) ---
 $verifiers = [];
-// Ambil siapa saja yang memverifikasi tipe 'fisika' (mencakup kimia juga dalam konteks ini)
 $query_log = "
     SELECT u.nama 
     FROM log_verifikasi lv
@@ -53,20 +55,24 @@ while ($row = mysqli_fetch_assoc($result_log)) {
     $verifiers[$row['nama']] = true;
 }
 
-// --- 4. GENERATE QR CODE ---
+// --- 4. GENERATE QR CODE (VERSI PHP 7.4) ---
 $qrCodeBase64 = '';
 if (!empty($master_data['verification_token'])) {
+    // Gunakan URL yang valid
     $verification_url = BASE_URL . 'public_verify.php?token=' . urlencode($master_data['verification_token']);
 
-    // Buat QR Code
-    $builder = new Builder(
-        writer: new PngWriter(),
-        data: ($verification_url),
-        encoding: new Encoding('UTF-8'),
-        errorCorrectionLevel: ErrorCorrectionLevel::High,
-        margin: -15
-    );
-    $result = $builder->build();
+    // PERBAIKAN 2: Menggunakan Builder::create() dan Method Chaining
+    // PHP 7.4 tidak mendukung 'Named Arguments' (contoh: writer: new PngWriter())
+    $result = Builder::create()
+        ->writer(new PngWriter())
+        ->writerOptions([])
+        ->data($verification_url)
+        ->encoding(new Encoding('UTF-8'))
+        ->errorCorrectionLevel(new ErrorCorrectionLevelHigh()) // Gunakan Class instance
+        ->size(100)            // Ukuran pixel
+        ->margin(-20)            // Margin
+        ->build();
+        
     $qrString = $result->getString();
     $qrCodeBase64 = 'data:image/png;base64,' . base64_encode($qrString);
 }
@@ -81,13 +87,12 @@ $query_detail = "
     WHERE
         id_m_hasil_uji = ?
     ORDER BY
-        -- Urutkan agar Fisika muncul duluan, baru Kimia, lalu lainnya
         CASE
             WHEN kategori = 'Fisika' THEN 1
             WHEN kategori = 'Kimia' THEN 2
             ELSE 3
         END,
-        id ASC -- Urutkan berdasarkan ID input agar urutan form terjaga
+        nama_parameter ASC
 ";
 
 $stmt_detail = mysqli_prepare($con, $query_detail);
@@ -100,14 +105,14 @@ while ($row = mysqli_fetch_assoc($result_detail)) {
     $detail_data[] = $row;
 }
 
-// Grouping array berdasarkan kategori untuk ditampilkan per section di PDF
+// Grouping
 $grouped_parameters = [];
 foreach ($detail_data as $param) {
-    $kategori = $param['kategori'] ?: 'Lainnya'; // Default jika kategori kosong
+    $kategori = !empty($param['kategori']) ? $param['kategori'] : 'Lainnya';
     $grouped_parameters[$kategori][] = $param;
 }
 
-// Tutup koneksi sebelum render PDF
+// Tutup koneksi
 mysqli_close($con);
 
 // --- 6. RENDER PDF ---
@@ -118,20 +123,23 @@ $options->set('defaultFont', 'Helvetica');
 
 $dompdf = new Dompdf($options);
 
-// Output Buffering untuk mengambil HTML template
+// Output Buffering
 ob_start();
-// Pastikan nama file template benar dan ada di folder yang sama dengan file ini
-include 'generate_template.php';
+include 'generate_template.php'; 
 $html = ob_get_clean();
 
 $dompdf->loadHtml($html);
 
-// Set ukuran kertas F4 (Folio)
-$dompdf->setPaper(array(0, 0, 612.28, 935.43), 'portrait');
+// Set ukuran kertas F4 (Folio) - Ukuran dalam point (1 inch = 72 pt)
+// F4 = 210mm x 330mm = 8.27in x 13.0in
+// 8.27 * 72 ≈ 595.44
+// 13.0 * 72 = 936
+$dompdf->setPaper(array(0, 0, 612.28, 935.43), 'portrait'); // Settingan awal Anda
 
 $dompdf->render();
 
 // Stream PDF
-// Gunakan preg_replace pada nama file agar aman saat didownload
-$filename = "Laporan_Hasil_Uji_" . preg_replace('/[^A-Za-z0-9\-]/', '_', $master_data['no_analisa']) . ".pdf";
-$dompdf->stream($filename, array("Attachment" => FALSE));
+$clean_no_analisa = preg_replace('/[^A-Za-z0-9\-]/', '_', $master_data['no_analisa']);
+$filename = "Laporan_Hasil_Uji_" . $clean_no_analisa . ".pdf";
+$dompdf->stream($filename, array("Attachment" => 0));
+?>

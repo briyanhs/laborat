@@ -1,5 +1,5 @@
 <?php
-// admin/proses_edit_all.php (MODUL FISIKA & KIMIA)
+// admin/proses_edit_all.php (MODUL FISIKA & KIMIA) - PHP 7.4 Compatible
 
 include '../database/database.php';
 include '../config.php';
@@ -15,7 +15,7 @@ if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_tok
     die("Akses Ditolak: Token CSRF tidak valid.");
 }
 
-// --- FUNGSI CEK KEPATUHAN (SAMA DENGAN JS, TAPI PHP VERSION) ---
+// --- FUNGSI CEK KEPATUHAN (PHP 7.4 Friendly) ---
 function cekKepatuhan($hasil, $standar)
 {
     if ($hasil === null || $standar === null || trim((string)$hasil) === '' || trim((string)$standar) === '') {
@@ -48,13 +48,15 @@ function cekKepatuhan($hasil, $standar)
 
             if ($hasilNum !== null) {
                 // Gunakan epsilon untuk komparasi float yang presisi
-                return ($hasilNum >= $min && $hasilNum <= $max) ? 'Memenuhi' : 'Tidak Memenuhi';
+                $epsilon = 0.000001;
+                return ($hasilNum >= ($min - $epsilon) && $hasilNum <= ($max + $epsilon)) ? 'Memenuhi' : 'Tidak Memenuhi';
             }
         }
     }
 
     // 2. Cek Kurang Dari (e.g., "< 50")
-    if (str_starts_with($standarStr, '<')) {
+    // FIX PHP 7.4: Ganti str_starts_with dengan strpos === 0
+    if (strpos($standarStr, '<') === 0) {
         $maxStr = trim(substr($standarStr, 1));
         if (is_numeric($maxStr) && $hasilNum !== null) {
             return $hasilNum < (float)$maxStr ? 'Memenuhi' : 'Tidak Memenuhi';
@@ -62,7 +64,8 @@ function cekKepatuhan($hasil, $standar)
     }
 
     // 3. Cek Lebih Dari (e.g., "> 1")
-    if (str_starts_with($standarStr, '>')) {
+    // FIX PHP 7.4: Ganti str_starts_with dengan strpos === 0
+    if (strpos($standarStr, '>') === 0) {
         $minStr = trim(substr($standarStr, 1));
         if (is_numeric($minStr) && $hasilNum !== null) {
             return $hasilNum > (float)$minStr ? 'Memenuhi' : 'Tidak Memenuhi';

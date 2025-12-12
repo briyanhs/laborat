@@ -1,10 +1,11 @@
 <?php
-// admin/proses_tambah.php (MODUL FISIKA & KIMIA)
+// admin/proses_tambah.php (MODUL FISIKA & KIMIA) - PHP 7.4 Compatible
 
 include '../database/database.php';
 include '../config.php';
 
 // 1. Security Session
+// Pastikan parameter samesite didukung (PHP 7.3+)
 session_set_cookie_params([
     'httponly' => true,
     'samesite' => 'Strict'
@@ -22,7 +23,7 @@ if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_tok
     die("Token CSRF tidak valid! Akses ditolak.");
 }
 
-// --- FUNGSI LOGIKA KEPATUHAN ---
+// --- FUNGSI LOGIKA KEPATUHAN (PHP 7.4 Friendly) ---
 function cekKepatuhan($hasil, $standar)
 {
     // Pastikan input di-cast ke string dan di-trim
@@ -64,33 +65,34 @@ function cekKepatuhan($hasil, $standar)
     }
 
     // 2. LOGIKA KURANG DARI (Contoh: < 10)
-    if (str_starts_with($standarStr, '<')) {
+    // FIX: str_starts_with diganti strpos === 0
+    if (strpos($standarStr, '<') === 0) {
         $maxStr = trim(substr($standarStr, 1));
         if (is_numeric($maxStr) && $hasilNum !== null) {
+            // Logika: Hasil < Max
             return $hasilNum < (float)$maxStr ? 'Memenuhi' : 'Tidak Memenuhi';
         }
     }
 
     // 3. LOGIKA LEBIH DARI (Contoh: > 1)
-    if (str_starts_with($standarStr, '>')) {
+    // FIX: str_starts_with diganti strpos === 0
+    if (strpos($standarStr, '>') === 0) {
         $minStr = trim(substr($standarStr, 1));
         if (is_numeric($minStr) && $hasilNum !== null) {
+            // Logika: Hasil > Min
             return $hasilNum > (float)$minStr ? 'Memenuhi' : 'Tidak Memenuhi';
         }
     }
 
-    // 4. LOGIKA NILAI PASTI / TEKS
-    if ($hasilNum === null) {
-        // Jika hasil bukan angka (misal: "Negatif"), bandingkan string case-insensitive
-        return strtolower($hasilStr) === strtolower($standarStr) ? 'Memenuhi' : 'Tidak Memenuhi';
-    }
-
-    // 5. LOGIKA MAKSIMUM STANDAR (Jika hanya angka, anggap itu batas maksimum)
-    if (is_numeric($standarStr)) {
+    // 4. LOGIKA MAKSIMUM STANDAR (Jika hanya angka, anggap itu batas maksimum <=)
+    // Pindahkan logika ini sebelum cek teks agar angka murni tertangkap duluan
+    if (is_numeric($standarStr) && $hasilNum !== null) {
         return $hasilNum <= (float)$standarStr ? 'Memenuhi' : 'Tidak Memenuhi';
     }
 
-    return '';
+    // 5. LOGIKA NILAI PASTI / TEKS (String Matching)
+    // Jika sampai sini belum return, lakukan perbandingan string
+    return strtolower($hasilStr) === strtolower($standarStr) ? 'Memenuhi' : 'Tidak Memenuhi';
 }
 // ====================================================================
 
@@ -100,16 +102,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit();
     }
 
-    // --- AMBIL DATA INPUT (TANPA real_escape_string karena pakai Prepared Statement) ---
-    $nama_pelanggan    = $_POST['nama_pelanggan'] ?? '';
-    $alamat            = $_POST['alamat'] ?? '';
-    $status_pelanggan  = $_POST['status_pelanggan'] ?? '';
-    $jenis_sampel      = $_POST['jenis_sampel'] ?? '';
-    $keterangan_sampel = $_POST['keterangan_sampel'] ?? '';
-    $nama_pengirim     = $_POST['nama_pengirim'] ?? '';
-    $no_analisa        = $_POST['no_analisa'] ?? '';
-    $wilayah           = $_POST['wilayah'] ?? '';
-    $status_global     = $_POST['status'] ?? 'Proses';
+    // --- AMBIL DATA INPUT ---
+    $nama_pelanggan      = $_POST['nama_pelanggan'] ?? '';
+    $alamat              = $_POST['alamat'] ?? '';
+    $status_pelanggan    = $_POST['status_pelanggan'] ?? '';
+    $jenis_sampel        = $_POST['jenis_sampel'] ?? '';
+    $keterangan_sampel   = $_POST['keterangan_sampel'] ?? '';
+    $nama_pengirim       = $_POST['nama_pengirim'] ?? '';
+    $no_analisa          = $_POST['no_analisa'] ?? '';
+    $wilayah             = $_POST['wilayah'] ?? '';
+    $status_global       = $_POST['status'] ?? 'Proses';
 
     // --- HANDLING TANGGAL (Ubah string kosong jadi NULL) ---
     $tanggal_pengambilan = !empty($_POST['tanggal_pengambilan']) ? $_POST['tanggal_pengambilan'] : NULL;
@@ -133,21 +135,32 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     try {
         // 1. INSERT DATA MASTER
         $query_insert_master = "INSERT INTO master_hasil_uji 
-            (nama_pelanggan, alamat, status_pelanggan, jenis_sampel, keterangan_sampel, nama_pengirim, no_analisa, wilayah, tanggal_pengambilan, tanggal_pengiriman, tanggal_penerimaan, tanggal_pengujian) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        
+            (nama_pelanggan, alamat, status_pelanggan, jenis_sampel, keterangan_sampel, nama_pengirim, no_analisa, wilayah, tanggal_pengambilan, tanggal_pengiriman, tanggal_penerimaan, tanggal_pengujian, verification_token) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)";
+
         $stmt_master = mysqli_prepare($con, $query_insert_master);
         if (!$stmt_master) {
             throw new Exception("Prepare Master Failed: " . mysqli_error($con));
         }
 
         // Bind: 12 string ('s')
-        mysqli_stmt_bind_param($stmt_master, "ssssssssssss", 
-            $nama_pelanggan, $alamat, $status_pelanggan, $jenis_sampel, 
-            $keterangan_sampel, $nama_pengirim, $no_analisa, $wilayah, 
-            $tanggal_pengambilan, $tanggal_pengiriman, $tanggal_penerimaan, $tanggal_pengujian
+        mysqli_stmt_bind_param(
+            $stmt_master,
+            "ssssssssssss",
+            $nama_pelanggan,
+            $alamat,
+            $status_pelanggan,
+            $jenis_sampel,
+            $keterangan_sampel,
+            $nama_pengirim,
+            $no_analisa,
+            $wilayah,
+            $tanggal_pengambilan,
+            $tanggal_pengiriman,
+            $tanggal_penerimaan,
+            $tanggal_pengujian
         );
-        
+
         if (!mysqli_stmt_execute($stmt_master)) {
             throw new Exception("Execute Master Failed: " . mysqli_stmt_error($stmt_master));
         }
@@ -164,7 +177,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $query_insert_hasil = "INSERT INTO hasil_uji 
                 (id_m_hasil_uji, nama_parameter, satuan, kadar_maksimum, metode_uji, kategori, hasil, status, keterangan) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            
+
             $stmt_hasil = mysqli_prepare($con, $query_insert_hasil);
             if (!$stmt_hasil) {
                 throw new Exception("Prepare Detail Failed: " . mysqli_error($con));
@@ -185,18 +198,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $keterangan = cekKepatuhan($hasil_value, $kadar_maksimum);
 
                     // Bind: 1 int, 8 string
-                    mysqli_stmt_bind_param($stmt_hasil, "issssssss", 
-                        $id_m_hasil_uji, 
-                        $nama_parameter, 
-                        $satuan, 
-                        $kadar_maksimum, 
-                        $metode_uji, 
-                        $kategori, 
-                        $hasil_value, 
-                        $status_global, 
+                    mysqli_stmt_bind_param(
+                        $stmt_hasil,
+                        "issssssss",
+                        $id_m_hasil_uji,
+                        $nama_parameter,
+                        $satuan,
+                        $kadar_maksimum,
+                        $metode_uji,
+                        $kategori,
+                        $hasil_value,
+                        $status_global,
                         $keterangan
                     );
-                    
+
                     if (!mysqli_stmt_execute($stmt_hasil)) {
                         throw new Exception("Execute Detail Failed (Param ID: $param_id)");
                     }
@@ -209,16 +224,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         mysqli_commit($con);
         header("Location: fisika_kimia.php?pesan=sukses_tambah");
         exit();
-
     } catch (Exception $e) {
         // Rollback jika error
         mysqli_rollback($con);
-        
+
         // Log error ke server
         error_log("Error Tambah Fisika/Kimia: " . $e->getMessage());
-        
-        // Redirect dengan pesan error umum
-        $error_msg = urlencode("Terjadi kesalahan sistem saat menyimpan data.");
+
+        // Redirect dengan pesan error
+        $error_msg = urlencode("Terjadi kesalahan sistem: " . $e->getMessage());
         header("Location: fisika_kimia.php?pesan=gagal&error_msg=" . $error_msg);
         exit();
     }
@@ -230,4 +244,3 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 if (isset($con)) {
     mysqli_close($con);
 }
-?>

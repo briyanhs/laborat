@@ -1,4 +1,6 @@
 <?php
+// admin/generate_pdf_bacteriology.php (Versi PHP 7.4 & Endroid QR v4)
+
 // Pastikan tidak ada output (spasi/enter) sebelum tag PHP
 require_once '../vendor/autoload.php';
 include '../database/database.php';
@@ -11,7 +13,8 @@ use Dompdf\Dompdf;
 use Dompdf\Options;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Encoding\Encoding;
-use Endroid\QrCode\ErrorCorrectionLevel;
+// PERBAIKAN 1: Gunakan Class spesifik untuk PHP 7.4
+use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh;
 use Endroid\QrCode\Writer\PngWriter;
 
 // --- 1. VALIDASI INPUT ---
@@ -36,8 +39,7 @@ if (!$master_data) {
 }
 
 // --- 3. LOGIKA VERIFIKATOR (TTD) ---
-// Mengambil daftar nama user yang sudah memverifikasi data ini di tabel log
-$verifiers = []; 
+$verifiers = [];
 $query_log = "
     SELECT u.nama 
     FROM log_verifikasi lv
@@ -50,26 +52,25 @@ mysqli_stmt_execute($stmt_log);
 $result_log = mysqli_stmt_get_result($stmt_log);
 
 while ($row = mysqli_fetch_assoc($result_log)) {
-    // Key array menggunakan nama agar mudah dicek di template (isset)
     $verifiers[$row['nama']] = true;
 }
 
-// --- 4. GENERATE QR CODE ---
+// --- 4. GENERATE QR CODE (PHP 7.4 Compatible) ---
 $qrCodeBase64 = '';
 if (!empty($master_data['verification_token'])) {
-    // URL yang akan dibuka saat QR di-scan
     $verification_url = BASE_URL . 'public_verify.php?token=' . urlencode($master_data['verification_token']);
 
-    // Generate QR Code
-    // Margin jangan negatif, set ke 0 atau 2 agar scanner bisa membaca border
-    $builder = new Builder(
-        writer: new PngWriter(),
-        data: ($verification_url),
-        encoding: new Encoding('UTF-8'),
-        errorCorrectionLevel: ErrorCorrectionLevel::High,
-        margin: -15
-    );
-    $result = $builder->build();
+    // PERBAIKAN 2: Menggunakan Method Chaining
+    $result = Builder::create()
+        ->writer(new PngWriter())
+        ->writerOptions([])
+        ->data($verification_url)
+        ->encoding(new Encoding('UTF-8'))
+        ->errorCorrectionLevel(new ErrorCorrectionLevelHigh()) // Gunakan Class Instance
+        ->size(100)
+        ->margin(-20) // Set margin 0 agar rapi
+        ->build();
+
     $qrString = $result->getString();
     $qrCodeBase64 = 'data:image/png;base64,' . base64_encode($qrString);
 }
@@ -102,31 +103,30 @@ while ($row = mysqli_fetch_assoc($result_detail)) {
     $detail_data[] = $row;
 }
 
-// Tutup koneksi database sebelum render PDF untuk menghemat resource
+// Tutup koneksi database
 mysqli_close($con);
 
-// --- 6. RENDER PDF MENGGUNAKAN DOMPDF ---
+// --- 6. RENDER PDF ---
 $options = new Options();
 $options->set('isHtml5ParserEnabled', true);
-$options->set('isRemoteEnabled', true); // Penting untuk memuat gambar/logo via URL
+$options->set('isRemoteEnabled', true);
 $options->set('defaultFont', 'Helvetica');
 
 $dompdf = new Dompdf($options);
 
-// Tangkap output HTML dari file template
+// Output Buffering
 ob_start();
-// Variabel $master_data, $detail_data, $verifiers, $qrCodeBase64 akan dikirim ke template ini
-include 'generate_template_bacteriology.php'; 
+include 'generate_template_bacteriology.php';
 $html = ob_get_clean();
 
 $dompdf->loadHtml($html);
 
-// Set ukuran kertas F4 (Folio) atau A4
-// Ukuran F4 dalam point: 612.28 x 935.43 (kurang lebih 21.59cm x 33.02cm)
+// Set ukuran kertas F4 (Folio)
 $dompdf->setPaper(array(0, 0, 612.28, 935.43), 'portrait');
 
 $dompdf->render();
 
-// Stream PDF ke browser (Attachment => false agar terbuka di browser, true untuk download otomatis)
-$dompdf->stream("Laporan_Bakteriologi_" . preg_replace('/[^A-Za-z0-9\-]/', '_', $master_data['no_analisa']) . ".pdf", array("Attachment" => FALSE));
+// Stream PDF
+$filename = "Laporan_Bakteriologi_" . preg_replace('/[^A-Za-z0-9\-]/', '_', $master_data['no_analisa']) . ".pdf";
+$dompdf->stream($filename, array("Attachment" => FALSE));
 ?>

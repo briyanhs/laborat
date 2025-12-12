@@ -4,14 +4,9 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit45aade144d15c478b6d5f27ffc6dabb2
+class ComposerStaticInit044cd68850eb4165900ad0ed94f733c1
 {
     public static $prefixLengthsPsr4 = array (
-        'c' => 
-        array (
-            'chillerlan\\Settings\\' => 20,
-            'chillerlan\\QRCode\\' => 18,
-        ),
         'S' => 
         array (
             'Svg\\' => 4,
@@ -41,14 +36,6 @@ class ComposerStaticInit45aade144d15c478b6d5f27ffc6dabb2
     );
 
     public static $prefixDirsPsr4 = array (
-        'chillerlan\\Settings\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/chillerlan/php-settings-container/src',
-        ),
-        'chillerlan\\QRCode\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/chillerlan/php-qrcode/src',
-        ),
         'Svg\\' => 
         array (
             0 => __DIR__ . '/..' . '/dompdf/php-svg-lib/src/Svg',
@@ -91,9 +78,9 @@ class ComposerStaticInit45aade144d15c478b6d5f27ffc6dabb2
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit45aade144d15c478b6d5f27ffc6dabb2::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit45aade144d15c478b6d5f27ffc6dabb2::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInit45aade144d15c478b6d5f27ffc6dabb2::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit044cd68850eb4165900ad0ed94f733c1::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit044cd68850eb4165900ad0ed94f733c1::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInit044cd68850eb4165900ad0ed94f733c1::$classMap;
 
         }, null, ClassLoader::class);
     }

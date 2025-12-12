@@ -154,8 +154,23 @@
         <table style="width:100%; border-collapse: collapse;">
             <tr>
                 <td style="text-align: center; vertical-align: top;">
-                    <img src="http://localhost/WEBLAB/image/logo_pemkot.png" style="width: 90px; float: left; margin-right: 10px;">
-                    <img src="http://localhost/WEBLAB/image/logo_toyawening.png" style="width: 90px; float: right; margin-left: 10px;">
+                    <?php
+                    
+                    // 1. Logo Pemkot (Kiri)
+                    // Pastikan path ini benar relatif dari file generate_pdf.php (di folder admin)
+                    $path_pemkot = '../image/logo_pemkot.png'; 
+                    $data_pemkot = file_get_contents($path_pemkot);
+                    $base64_pemkot = 'data:image/png;base64,' . base64_encode($data_pemkot);
+
+                    // 2. Logo Toya Wening (Kanan)
+                    $path_toya = '../image/logo_toyawening.png';
+                    $data_toya = file_get_contents($path_toya);
+                    $base64_toya = 'data:image/png;base64,' . base64_encode($data_toya);
+                    ?>
+
+                    <img src="<?= $base64_pemkot ?>" style="width: 90px; float: left; margin-right: 10px;">
+                    
+                    <img src="<?= $base64_toya ?>" style="width: 90px; float: right; margin-left: 10px;">
                     <div style="overflow: hidden;">
                         <h4>PEMERINTAH KOTA SURAKARTA</h4>
                         <h4>PERUSAHAAN UMUM DAERAH AIR MINUM</h4>

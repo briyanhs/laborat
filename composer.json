@@ -1,7 +1,11 @@
 {
     "require": {
         "dompdf/dompdf": "^3.1",
-        "endroid/qr-code": "6.0.9",
-        "chillerlan/php-qrcode": "^5.0"
+        "endroid/qr-code": "4.4"
+    },
+    "config": {
+        "platform": {
+            "php": "7.4"
+        }
     }
 }
