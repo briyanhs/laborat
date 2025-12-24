@@ -6,8 +6,8 @@
     <title>Laporan Hasil Uji</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            margin: 10mm 15mm;
+            font-family: 'DejaVu Sans', sans-serif;
+            margin: 5mm 10mm;
             font-size: 10pt;
         }
 
@@ -61,7 +61,7 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 9pt;
-            margin-bottom: 2px;
+            margin-bottom: 0px;
         }
 
         .info-container-table td {
@@ -72,13 +72,16 @@
         .nested-info-table {
             width: 100%;
             border-collapse: collapse;
+            margin-bottom: 0px;
+
         }
 
         .nested-info-table td {
-            padding: 1.5px 0;
+            padding: 0px 0;
         }
 
         .nested-info-table .label {
+
             width: 140px;
             /* Atur lebar tetap untuk label */
         }
@@ -91,15 +94,15 @@
         .parameter-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 1px;
+            margin-top: 0px;
         }
 
         .parameter-table th,
         .parameter-table td {
             border: 1px solid #000;
-            padding: 2px;
+            padding: 1px;
             text-align: center;
-            font-size: 9pt;
+            font-size: 8pt;
         }
 
         .parameter-table th {
@@ -155,10 +158,10 @@
             <tr>
                 <td style="text-align: center; vertical-align: top;">
                     <?php
-                    
+
                     // 1. Logo Pemkot (Kiri)
                     // Pastikan path ini benar relatif dari file generate_pdf.php (di folder admin)
-                    $path_pemkot = '../image/logo_pemkot.png'; 
+                    $path_pemkot = '../image/logo_pemkot.png';
                     $data_pemkot = file_get_contents($path_pemkot);
                     $base64_pemkot = 'data:image/png;base64,' . base64_encode($data_pemkot);
 
@@ -169,7 +172,7 @@
                     ?>
 
                     <img src="<?= $base64_pemkot ?>" style="width: 90px; float: left; margin-right: 10px;">
-                    
+
                     <img src="<?= $base64_toya ?>" style="width: 90px; float: right; margin-left: 10px;">
                     <div style="overflow: hidden;">
                         <h4>PEMERINTAH KOTA SURAKARTA</h4>
@@ -282,9 +285,9 @@
                 }
 
                 $nama_param_formatted = htmlspecialchars($param['nama_parameter']);
-                $nama_param_formatted = str_replace('Cr⁶⁺', 'Cr<sup>6+</sup>', $nama_param_formatted);
-                $nama_param_formatted = str_replace('NO₂⁻', 'NO<sub>2</sub><sup>-</sup>', $nama_param_formatted);
-                $nama_param_formatted = str_replace('NO₃⁻', 'NO<sub>3</sub><sup>-</sup>', $nama_param_formatted);
+                $nama_param_formatted = str_replace('Cr6?', 'Cr<sup>6+</sup>', $nama_param_formatted);
+                $nama_param_formatted = str_replace('NO2?', 'NO<sub>2</sub><sup>-</sup>', $nama_param_formatted);
+                $nama_param_formatted = str_replace('NO3?', 'NO<sub>3</sub><sup>-</sup>', $nama_param_formatted);
 
                 echo '
                 <tr>

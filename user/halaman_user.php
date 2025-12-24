@@ -96,12 +96,12 @@ $message = '';
 $alertType = 'success';
 if (isset($_GET['pesan'])) {
     if ($_GET['pesan'] == 'verif_sukses') {
-        $message = '✅ Data berhasil diverifikasi.';
+        $message = 'Data berhasil diverifikasi.';
     } elseif ($_GET['pesan'] == 'verif_gagal') {
-        $message = '❌ Anda sudah pernah memverifikasi data ini.';
+        $message = 'Anda sudah pernah memverifikasi data ini.';
         $alertType = 'danger';
     } elseif ($_GET['pesan'] == 'token_error') {
-        $message = '❌ Token CSRF tidak valid.';
+        $message = 'Token CSRF tidak valid.';
         $alertType = 'danger';
     }
 }
@@ -335,6 +335,9 @@ if (isset($_GET['pesan'])) {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="<?= BASE_URL ?>bootstrap/js/bootstrap.bundle.min.js"></script>
     <script type="text/javascript" src="<?= BASE_URL ?>datatables/datatables.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
     <script>
         $(document).ready(function() {
             // Toggle Sidebar
@@ -370,6 +373,57 @@ if (isset($_GET['pesan'])) {
                     window.history.replaceState(null, '', url.toString());
                 }
             }
+        });
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+
+            // --- SKENARIO 1: GAGAL URUTAN (DIREKTUR DULUAN) ---
+            // Backend mengirim: ?pesan=gagal&error_msg=Mohon maaf...
+            <?php if (isset($_GET['pesan']) && $_GET['pesan'] == 'gagal' && isset($_GET['error_msg'])): ?>
+                Swal.fire({
+                    icon: 'warning', // Icon Kuning (Peringatan)
+                    title: 'Verifikasi Belum Bisa Dilakukan',
+                    html: '<?php echo htmlspecialchars($_GET['error_msg']); ?>',
+                    confirmButtonText: 'Siap, Mengerti',
+                    confirmButtonColor: '#f39c12', // Warna Orange
+                    allowOutsideClick: false
+                }).then(() => {
+                    // Bersihkan URL agar popup tidak muncul lagi saat refresh
+                    window.history.replaceState(null, null, window.location.pathname);
+                });
+            <?php endif; ?>
+
+            // --- SKENARIO 2: VERIFIKASI SUKSES (TERMASUK ARSIP OTOMATIS) ---
+            // Backend mengirim: ?pesan=verif_sukses
+            <?php if (isset($_GET['pesan']) && $_GET['pesan'] == 'verif_sukses'): ?>
+                Swal.fire({
+                    icon: 'success', // Icon Hijau (Sukses)
+                    title: 'Verifikasi Berhasil!',
+                    text: 'Tanda tangan digital telah disimpan. Dokumen Laporan sudah otomatis diarsipkan.',
+                    showConfirmButton: true,
+                    confirmButtonText: 'Lanjutkan',
+                    confirmButtonColor: '#3085d6',
+                    timer: 4000, // Otomatis tutup dalam 4 detik
+                    timerProgressBar: true
+                }).then(() => {
+                    window.history.replaceState(null, null, window.location.pathname);
+                });
+            <?php endif; ?>
+
+            // --- SKENARIO 3: SUDAH PERNAH VERIFIKASI (DUPLIKAT) ---
+            // Backend mengirim: ?pesan=verif_gagal
+            <?php if (isset($_GET['pesan']) && $_GET['pesan'] == 'verif_gagal'): ?>
+                Swal.fire({
+                    icon: 'info', // Icon Biru (Info)
+                    title: 'Sudah Terverifikasi',
+                    text: 'Anda sudah pernah melakukan tanda tangan untuk dokumen ini sebelumnya.',
+                    confirmButtonText: 'Tutup'
+                }).then(() => {
+                    window.history.replaceState(null, null, window.location.pathname);
+                });
+            <?php endif; ?>
+
         });
     </script>
 </body>

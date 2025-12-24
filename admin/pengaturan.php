@@ -22,17 +22,17 @@ $alertType = 'success';
 if (isset($_GET['pesan'])) {
     switch ($_GET['pesan']) {
         case 'sukses_tambah':
-            $message = '✅ Data berhasil ditambahkan.';
+            $message = 'Data berhasil ditambahkan.';
             break;
         case 'sukses_edit':
-            $message = '✏️ Data berhasil diperbarui.';
+            $message = 'Data berhasil diperbarui.';
             break;
         case 'sukses_hapus':
-            $message = '🗑️ Data berhasil dihapus.';
+            $message = 'Data berhasil dihapus.';
             break;
         case 'gagal':
             $alertType = 'danger';
-            $message = '❌ Terjadi kesalahan.';
+            $message = 'Terjadi kesalahan.';
             if (isset($_GET['error_msg'])) $message .= ' Detail: ' . htmlspecialchars($_GET['error_msg']);
             break;
     }
